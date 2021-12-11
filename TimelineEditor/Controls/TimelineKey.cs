@@ -10,7 +10,7 @@ using System.Windows.Data;
 using System.Windows.Input;
 using System.Windows.Media;
 
-namespace TimelineEditor.Controls
+namespace Timeline.Controls
 {
     public class TimelineKey : ContentControl
     {
@@ -32,8 +32,8 @@ namespace TimelineEditor.Controls
             DependencyProperty.Register(nameof(IsSelected), typeof(bool), typeof(TimelineKey),
                 new FrameworkPropertyMetadata(false, FrameworkPropertyMetadataOptions.BindsTwoWayByDefault, IsSelectedPropertyChanged));
 
-        internal EventHandler<TimelineKey>? SelectEvent { get; set; }
-        internal EventHandler<TimelineKey>? SelectedEvent { get; set; }
+        internal EventHandler<TimelineKey>? TouchEvent { get; set; }
+        internal EventHandler<TimelineKey>? SelectionChangedEvent { get; set; }
 
         TranslateTransform Translate { get; }
 
@@ -55,26 +55,34 @@ namespace TimelineEditor.Controls
         {
             // Ctrl+Clickによる超シビアなタイミングでClickCount==2で処理が来る場合がある
             // なので、ClickCountを見て処理を限定する実装はしないように。
-            SelectEvent?.Invoke(this, this);
+            TouchEvent?.Invoke(this, this);
             e.Handled = true;
         }
 
         protected override void OnMouseLeftButtonUp(MouseButtonEventArgs e)
         {
-            SelectedEvent?.Invoke(this, this);
+            if (Keyboard.IsKeyDown(Key.LeftCtrl) || Keyboard.IsKeyDown(Key.RightCtrl))
+            {
+                IsSelected = !IsSelected;
+            }
+            else
+            {
+                IsSelected = true;
+            }
+
             e.Handled = true;
         }
 
         static void PlacementPositionPropertyChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
         {
             var key = (TimelineKey)d;
-            key.Translate.X = (double)e.NewValue;
+            key.Translate.X = Math.Max(0, (double)e.NewValue);
         }
 
         static void IsSelectedPropertyChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
         {
             var key = (TimelineKey)d;
-            key.SelectedEvent?.Invoke(key, key);
+            key.SelectionChangedEvent?.Invoke(key, key);
         }
     }
 }

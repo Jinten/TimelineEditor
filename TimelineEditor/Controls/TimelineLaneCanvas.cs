@@ -11,7 +11,7 @@ using System.Windows.Data;
 using System.Windows.Input;
 using System.Windows.Media;
 
-namespace TimelineEditor.Controls
+namespace Timeline.Controls
 {
     public class TimelineLaneCanvas : Canvas
     {
@@ -47,14 +47,24 @@ namespace TimelineEditor.Controls
         public static readonly DependencyProperty ContextMenuOpeningPositionProperty =
             DependencyProperty.Register(nameof(ContextMenuOpeningPosition), typeof(Point), typeof(TimelineLaneCanvas), new FrameworkPropertyMetadata(Define.ZeroPoint));
 
+        public Brush UnderBorder
+        {
+            get => (Brush)GetValue(UnderBorderProperty);
+            set => SetValue(UnderBorderProperty, value);
+        }
+        public static readonly DependencyProperty UnderBorderProperty =
+            DependencyProperty.Register(nameof(UnderBorder), typeof(Brush), typeof(TimelineLaneCanvas), new FrameworkPropertyMetadata(null, UnderBorderPropertyChanged));
+
         internal ListBoxItem TrackItem { get; }
+        internal EventHandler<TimelineKey>? KeyAddedEvent { get; set; }
         internal EventHandler<TimelineKey>? KeyRemovedEvent { get; set; }
-        internal EventHandler<TimelineKey>? KeySelectEvent { get; set; }
-        internal EventHandler<TimelineKey>? KeySelectedEvent { get;set; }
+        internal EventHandler<TimelineKey>? KeyTouchEvent { get; set; }
+        internal EventHandler<TimelineKey>? KeySelectionChangedEvent { get; set; }
 
         TranslateTransform Translate { get; }
 
         Style? _KeyStyle;
+        Pen? _UnderBorderPen;
 
         public TimelineLaneCanvas(ListBoxItem trackItem, Style? keyStyle, object content, double x, double y, double width)
         {
@@ -64,6 +74,8 @@ namespace TimelineEditor.Controls
             _KeyStyle = keyStyle;
 
             DataContext = content;
+
+            SizeChanged += TimelineLaneCanvas_SizeChanged;
 
             TrackItem.SizeChanged += Track_SizeChanged;
             TrackItem.IsVisibleChanged += Track_IsVisibleChanged;
@@ -77,19 +89,15 @@ namespace TimelineEditor.Controls
             MinHeight = TrackItem.ActualHeight;
             MinWidth = width;
 
-            var rand = new Random();
-            byte r = (byte)rand.Next(0, 255);
-            byte g = (byte)rand.Next(0, 255);
-            byte b = (byte)rand.Next(0, 255);
-            Background = new SolidColorBrush(Color.FromArgb(255, r, g, b));
-
             var group = new TransformGroup();
             group.Children.Add(Translate);
 
             RenderTransform = group;
 
-            Unloaded += (sender, e) => 
+            Unloaded += (sender, e) =>
             {
+                SizeChanged -= TimelineLaneCanvas_SizeChanged;
+
                 foreach (var key in Children.OfType<TimelineKey>())
                 {
                     UnsubscribeTimelineKeyEvent(key);
@@ -108,15 +116,14 @@ namespace TimelineEditor.Controls
             return Children.OfType<TimelineKey>().ToArray();
         }
 
-        internal void SyncLanePosition(double x, double y)
+        internal void SyncLaneVerticalPosition(double y)
         {
-            Translate.X = x;
             Translate.Y = y;
         }
 
         internal void UpdateKeyStyle(Style style)
         {
-            foreach(var key in Children.OfType<TimelineKey>())
+            foreach (var key in Children.OfType<TimelineKey>())
             {
                 key.Style = style;
                 key.ApplyTemplate();
@@ -135,15 +142,8 @@ namespace TimelineEditor.Controls
                 lane.RemoveKeys(removeKey);
             }
 
-            var keys = ((IEnumerable)e.NewValue).OfType<object>().Select(arg => new TimelineKey(arg)).ToArray();
-
-            foreach (var key in keys)
-            {
-                key.Style = lane._KeyStyle;
-                key.ApplyTemplate();
-            }
-
-            lane.AddKeys(keys);
+            var contents = ((IEnumerable)e.NewValue).OfType<object>().ToArray();
+            lane.AddKeysInternal(contents);
 
             if (e.OldValue is INotifyCollectionChanged oldNotifyCollectionChanged)
             {
@@ -156,11 +156,18 @@ namespace TimelineEditor.Controls
             }
         }
 
+        static void UnderBorderPropertyChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
+        {
+            var lane = (TimelineLaneCanvas)d;
+            lane._UnderBorderPen = new Pen((Brush)e.NewValue, 1);
+            lane._UnderBorderPen.Freeze();
+        }
+
         protected override void OnMouseLeftButtonDown(MouseButtonEventArgs e)
         {
-            if(e.ClickCount == 2)
+            if (e.ClickCount == 2)
             {
-                if(LaneDoubleClickedCommand != null && LaneDoubleClickedCommand.CanExecute(e))
+                if (LaneDoubleClickedCommand != null && LaneDoubleClickedCommand.CanExecute(e))
                 {
                     LaneDoubleClickedCommand.Execute(e);
                 }
@@ -169,8 +176,8 @@ namespace TimelineEditor.Controls
 
         protected override void OnMouseLeftButtonUp(MouseButtonEventArgs e)
         {
-            if(LaneClickedCommand != null && LaneClickedCommand.CanExecute(e))
-            {
+            if (LaneClickedCommand != null && LaneClickedCommand.CanExecute(e))
+            { 
                 LaneClickedCommand.Execute(e);
             }
         }
@@ -178,28 +185,43 @@ namespace TimelineEditor.Controls
         protected override void OnContextMenuOpening(ContextMenuEventArgs e)
         {
             ContextMenuOpeningPosition = new Point(e.CursorLeft, e.CursorTop);
+        }
 
-            var expression = BindingOperations.GetBindingExpression(this, ContextMenuOpeningPositionProperty);
-            expression?.UpdateSource();
+        protected override void OnRender(DrawingContext dc)
+        {
+            dc.DrawRectangle(Background, null, new Rect(0, 0, ActualWidth, ActualHeight - 1));
+            dc.DrawLine(_UnderBorderPen, new Point(0, ActualHeight), new Point(ActualWidth, ActualHeight));
         }
 
         void SubscribeTimelineKeyEvent(TimelineKey key)
         {
-            key.SelectEvent += KeySelectEventHandler;
-            key.SelectedEvent += KeySelectedEventHandler;
+            key.TouchEvent += KeyTouchEventHandler;
+            key.SelectionChangedEvent += KeySelectionChangedEventHandler;
         }
 
         void UnsubscribeTimelineKeyEvent(TimelineKey key)
         {
-            key.SelectedEvent -= KeySelectedEventHandler;
-            key.SelectEvent -= KeySelectEventHandler;
+            key.SelectionChangedEvent -= KeySelectionChangedEventHandler;
+            key.TouchEvent -= KeyTouchEventHandler;
         }
 
-        void AddKeys(params TimelineKey[] addKeys)
+        void AddKeysInternal(params TimelineKey[] addKeys)
         {
             foreach (var addKey in addKeys)
             {
+                addKey.Style = _KeyStyle;
+
+                // LaneCanvasに1pxの下線を引くため
+                addKey.MinHeight = Math.Max(0, ActualHeight - 1);
+                addKey.MaxHeight = Math.Max(0, ActualHeight - 1);
+
+                addKey.ApplyTemplate();
+
+                SubscribeTimelineKeyEvent(addKey);
+
                 Children.Add(addKey);
+
+                KeyAddedEvent?.Invoke(this, addKey);
             }
         }
 
@@ -236,7 +258,7 @@ namespace TimelineEditor.Controls
         void ClearKeysInternal()
         {
             var removeKeys = Children.OfType<TimelineKey>().ToArray();
-            foreach(var removeKey in removeKeys)
+            foreach (var removeKey in removeKeys)
             {
                 Children.Remove(removeKey);
                 KeyRemovedEvent?.Invoke(this, removeKey);
@@ -247,18 +269,7 @@ namespace TimelineEditor.Controls
         {
             foreach (var content in contents)
             {
-                var addKey = new TimelineKey(content)
-                {
-                    Style = _KeyStyle,
-                    MinHeight = ActualHeight,
-                    MaxHeight = ActualHeight,
-                };
-
-                SubscribeTimelineKeyEvent(addKey);
-
-                addKey.ApplyTemplate();
-
-                AddKeys(addKey);
+                AddKeysInternal(new TimelineKey(content));
             }
         }
 
@@ -268,14 +279,23 @@ namespace TimelineEditor.Controls
             RemoveKeys(removeKeys);
         }
 
-        void KeySelectEventHandler(object? sender, TimelineKey key)
+        void KeyTouchEventHandler(object? sender, TimelineKey key)
         {
-            KeySelectEvent?.Invoke(this, key);
+            KeyTouchEvent?.Invoke(this, key);
         }
 
-        void KeySelectedEventHandler(object? sender, TimelineKey key)
+        void KeySelectionChangedEventHandler(object? sender, TimelineKey key)
         {
-            KeySelectedEvent?.Invoke(this, key);
+            KeySelectionChangedEvent?.Invoke(this, key);
+        }
+
+        void TimelineLaneCanvas_SizeChanged(object sender, SizeChangedEventArgs e)
+        {
+            foreach (var key in Children.OfType<TimelineKey>())
+            {
+                key.MinHeight = ActualHeight - 1;
+                key.MaxHeight = ActualHeight - 1;
+            }
         }
 
         void Track_IsVisibleChanged(object sender, DependencyPropertyChangedEventArgs e)
@@ -286,14 +306,7 @@ namespace TimelineEditor.Controls
 
         void Track_SizeChanged(object sender, SizeChangedEventArgs e)
         {
-            MinHeight = e.NewSize.Height;
-            MaxHeight = e.NewSize.Height;
-
-            foreach (var key in Children.OfType<TimelineKey>())
-            {
-                key.MinHeight = MinHeight;
-                key.MaxHeight = MinHeight;
-            }
+            Height = e.NewSize.Height;
         }
     }
 }

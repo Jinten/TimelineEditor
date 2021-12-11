@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Media;
 
-namespace TimelineEditor.Utilities
+namespace Timeline.Utilities
 {
     internal static class FrameworkElementFinder
     {

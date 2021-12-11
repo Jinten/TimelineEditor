@@ -3,7 +3,7 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.0.31919.166
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "TimelineEditor", "TimelineEditor\TimelineEditor.csproj", "{26C72611-F638-469A-B572-BEC4493ADA55}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Timeline", "TimelineEditor\Timeline.csproj", "{26C72611-F638-469A-B572-BEC4493ADA55}"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Test", "Test\Test.csproj", "{58251011-C7DB-444C-AF93-3BC0E55C62F0}"
 EndProject

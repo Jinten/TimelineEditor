@@ -25,7 +25,7 @@ namespace Test.ViewModels
             get => _IsSelected;
             set => RaisePropertyChangedIfSet(ref _IsSelected, value);
         }
-        bool _IsSelected = false;
+        bool _IsSelected = true;
 
         public TimelineKeyViewModel(double position)
         {
@@ -89,6 +89,10 @@ namespace Test.ViewModels
 
         public void AddKey(TimelineKeyViewModel vm)
         {
+            foreach(var key in _Keys)
+            {
+                key.IsSelected = false;
+            }
             _Keys.Add(vm);
         }
 
@@ -157,7 +161,11 @@ namespace Test.ViewModels
 
         public MainWindowViewModel()
         {
-            _Tracks.Add(new TrackItemViewModel("test1", this));
+            var test1Lane = new TrackItemViewModel("test1", this);
+            test1Lane.AddKey();
+            test1Lane.Keys.ElementAt(0).IsSelected = true;
+
+            _Tracks.Add(test1Lane);
             _Tracks.Add(new TrackItemViewModel("test2", this));
         }
 

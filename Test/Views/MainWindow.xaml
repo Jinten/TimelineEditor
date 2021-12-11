@@ -4,8 +4,8 @@
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:vm="clr-namespace:Test.ViewModels"
-        xmlns:tm="clr-namespace:TimelineEditor;assembly=TimelineEditor"
-        xmlns:tm_ctrls="clr-namespace:TimelineEditor.Controls;assembly=TimelineEditor"
+        xmlns:tl="clr-namespace:Timeline;assembly=Timeline"
+        xmlns:tl_ctrls="clr-namespace:Timeline.Controls;assembly=Timeline"
         xmlns:local="clr-namespace:Test" 
         mc:Ignorable="d"
         Title="MainWindow" Height="450" Width="800">
@@ -22,13 +22,28 @@
         </Grid.RowDefinitions>
 
         <Grid Grid.Row="0">
-            <Button Content="Add Track" Command="{Binding AddTrackCommand}"/>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="0.3*"/>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+            
+            <StackPanel Grid.Column="0">
+                <Button Content="Add Track" Command="{Binding AddTrackCommand}"/>
+            </StackPanel>
+
+            <GridSplitter Grid.Column="1" HorizontalAlignment="Stretch" Width="2"/>
+
+            <Grid Grid.Column="2" Background="Black">
+                
+            </Grid>
         </Grid>
 
         <GridSplitter Grid.Row="1" Height="2" HorizontalAlignment="Stretch"/>
 
-        <tm:TimelineEditor Grid.Row="2" 
+        <tl:TimelineEditor Grid.Row="2" 
                            ItemsSource="{Binding Tracks}"
+                           TimelineLaneBackground="#FF303030"
                            BeginKeyMovingCommand="{Binding BeginKeyMovingCommand}"
                            KeyMovingCommand="{Binding KeyMovingCommand}"
                            EndKeyMovingCommand="{Binding EndKeyMovingCommand}"
@@ -36,30 +51,39 @@
                            ContextMenuOpeningPosition="{Binding ContextMenuOpeningPosition}"
                            MousePositionOnTimelineLane="{Binding MousePositionOnTimelineLane}">
 
-            <tm:TimelineEditor.LaneInputBindings>
+            <tl:TimelineEditor.LaneInputBindings>
                 <KeyBinding Gesture="Delete" Command="{Binding DeleteOnLaneCommand}"/>
-            </tm:TimelineEditor.LaneInputBindings>
+            </tl:TimelineEditor.LaneInputBindings>
 
-            <tm:TimelineEditor.TrackInputBindings>
+            <tl:TimelineEditor.TrackInputBindings>
                 <KeyBinding Gesture="Delete" Command="{Binding DeleteOnTrackCommand}"/>
-            </tm:TimelineEditor.TrackInputBindings>
-            
-            <tm:TimelineEditor.TrackItemTemplate>
-                <HierarchicalDataTemplate ItemsSource="{Binding Tracks}">
-                    <TextBlock Text="{Binding Name}"/>
-                </HierarchicalDataTemplate>
-            </tm:TimelineEditor.TrackItemTemplate>
+            </tl:TimelineEditor.TrackInputBindings>
 
-            <tm:TimelineEditor.TrackItemContainerStyle>
+            <tl:TimelineEditor.TrackListBoxStyle>
+                <Style TargetType="{x:Type ListBox}">
+                    <Setter Property="Foreground" Value="WhiteSmoke"/>
+                    <Setter Property="Background" Value="#FF444444"/>
+                </Style>
+            </tl:TimelineEditor.TrackListBoxStyle>
+
+            <tl:TimelineEditor.TrackItemContainerStyle>
                 <Style TargetType="{x:Type ListBoxItem}">
                     <Setter Property="IsSelected" Value="{Binding IsSelected}"/>
+                    <Setter Property="ContentTemplate">
+                        <Setter.Value>
+                            <DataTemplate>
+                                <TextBlock Text="{Binding Name}"/>
+                            </DataTemplate>
+                        </Setter.Value>
+                    </Setter>
                 </Style>
-            </tm:TimelineEditor.TrackItemContainerStyle>
+            </tl:TimelineEditor.TrackItemContainerStyle>
 
-            <tm:TimelineEditor.TimelineLaneContainerStyle>
-                <Style TargetType="{x:Type tm_ctrls:TimelineLaneCanvas}">
+            <tl:TimelineEditor.TimelineLaneContainerStyle>
+                <Style TargetType="{x:Type tl_ctrls:TimelineLaneCanvas}">
                     <Setter Property="KeysSource" Value="{Binding Keys}"/>
                     <Setter Property="LaneDoubleClickedCommand" Value="{Binding AddKeyWithDoubleClickCommand}"/>
+                    <Setter Property="Background" Value="#FF555555"/>
                     <Setter Property="ContextMenu">
                         <Setter.Value>
                             <ContextMenu>
@@ -68,42 +92,55 @@
                         </Setter.Value>
                     </Setter>
                 </Style>
-            </tm:TimelineEditor.TimelineLaneContainerStyle>
+            </tl:TimelineEditor.TimelineLaneContainerStyle>
 
-            <tm:TimelineEditor.TimelineKeyContainerStyle>
-                <Style TargetType="{x:Type tm_ctrls:TimelineKey}">
+            <tl:TimelineEditor.TimelineKeyContainerStyle>
+                <Style TargetType="{x:Type tl_ctrls:TimelineKey}">
                     <Setter Property="PlacementPosition" Value="{Binding PlacementPosition}"/>
                     <Setter Property="IsSelected" Value="{Binding IsSelected}"/>
                     <Setter Property="Width" Value="12"/>
                     <Setter Property="Template">
                         <Setter.Value>
-                            <ControlTemplate TargetType="{x:Type tm_ctrls:TimelineKey}">
+                            <ControlTemplate TargetType="{x:Type tl_ctrls:TimelineKey}">
                                 <Border BorderThickness="1">
                                     <Border.Style>
                                         <Style TargetType="{x:Type Border}">
                                             <Style.Triggers>
                                                 <DataTrigger Binding="{Binding IsSelected}" Value="True">
-                                                    <Setter Property="BorderBrush" Value="Aqua"/>
+                                                    <Setter Property="BorderBrush" Value="WhiteSmoke"/>
                                                 </DataTrigger>
                                                 <DataTrigger Binding="{Binding IsSelected}" Value="False">
-                                                    <Setter Property="BorderBrush" Value="Black"/>
+                                                    <Setter Property="BorderBrush" Value="DimGray"/>
                                                 </DataTrigger>
                                             </Style.Triggers>
                                         </Style>
                                     </Border.Style>
-                                    <Rectangle Width="12" Fill="Red"/>
+                                    <Rectangle Width="8" Fill="Black">
+                                        <Rectangle.Style>
+                                            <Style TargetType="{x:Type Rectangle}">
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding IsSelected}" Value="True">
+                                                        <Setter Property="Fill" Value="Aqua"/>
+                                                    </DataTrigger>
+                                                    <DataTrigger Binding="{Binding IsSelected}" Value="False">
+                                                        <Setter Property="Fill" Value="Black"/>
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </Rectangle.Style>
+                                    </Rectangle>
                                 </Border>
                             </ControlTemplate>
                         </Setter.Value>
                     </Setter>
                 </Style>
-            </tm:TimelineEditor.TimelineKeyContainerStyle>
+            </tl:TimelineEditor.TimelineKeyContainerStyle>
 
-            <tm:TimelineEditor.ContextMenu>
+            <tl:TimelineEditor.ContextMenu>
                 <ContextMenu>
                     <MenuItem Header="Remove Tracks" Command="{Binding RemoveTracksCommand}"/>
                 </ContextMenu>
-            </tm:TimelineEditor.ContextMenu>
-        </tm:TimelineEditor>
+            </tl:TimelineEditor.ContextMenu>
+        </tl:TimelineEditor>
     </Grid>
 </Window>

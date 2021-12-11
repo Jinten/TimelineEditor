@@ -1,9 +1,10 @@
-<UserControl x:Class="TimelineEditor.TimelineEditor"
+<UserControl x:Class="Timeline.TimelineEditor"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
-             xmlns:local="clr-namespace:TimelineEditor"
+             xmlns:ctrls="clr-namespace:Timeline.Controls"
+             xmlns:local="clr-namespace:Timeline"
              mc:Ignorable="d" 
              d:DesignHeight="250" d:DesignWidth="800">
     <Grid>
@@ -20,14 +21,42 @@
             </Grid.ColumnDefinitions>
 
             <Grid Grid.Column="0">
-                <ListBox x:Name="TimelineTrackListBox" Background="Pink" BorderThickness="0" ScrollViewer.CanContentScroll="False"/>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="24"/>
+                    <RowDefinition Height="*"/>
+                </Grid.RowDefinitions>
+                <TextBlock Text="Tracks" Foreground="WhiteSmoke" VerticalAlignment="Center" Margin="8,0,0,0"/>
+                <ListBox x:Name="TrackListBox" Grid.Row="1" BorderThickness="0" ScrollViewer.CanContentScroll="False"/>
             </Grid>
 
             <GridSplitter Grid.Column="1" Width="2" HorizontalAlignment="Stretch"/>
 
-            <Grid Grid.Column="2" Background="Aqua" ClipToBounds="True">
-                <ScrollViewer x:Name="TimelineLaneScrollViewer" CanContentScroll="False" ScrollViewer.VerticalScrollBarVisibility="Auto">
-                    <Canvas x:Name="TimelineLaneCanvas" VerticalAlignment="Top" Focusable="True"/>
+            <Grid x:Name="TimelineLaneGrid" Grid.Column="2" ClipToBounds="True">
+
+                <ctrls:TimelineRuler x:Name="TimelineRuler" 
+                                     Color="#44888888" 
+                                     SubColor="#88EEEEEE"
+                                     Foreground="#88EEEEEE"
+                                     Height="24" 
+                                     Background="#FF222222" 
+                                     BorderBrush="#FFAA0000" 
+                                     BorderThickness="0,0,0,1" 
+                                     Offset="1,0" 
+                                     Panel.ZIndex="1" 
+                                     IsHitTestVisible="False"
+                                     VerticalAlignment="Top"/>
+
+                <ctrls:TimelineMarker x:Name="TimelineMarker" LineColor="Red" Panel.ZIndex="1" Visibility="Collapsed"/>
+
+                <ScrollViewer x:Name="TimelineLaneScrollViewer" 
+                              Grid.Row="2"
+                              CanContentScroll="False" 
+                              ScrollViewer.VerticalScrollBarVisibility="Auto">
+                    <ScrollViewer.RenderTransform>
+                        <TranslateTransform Y="24"/>
+                    </ScrollViewer.RenderTransform>
+                    
+                    <Canvas x:Name="TimelineLaneCanvas" VerticalAlignment="Top" Focusable="True" Height="{Binding ActualHeight, RelativeSource={RelativeSource AncestorType={x:Type Grid}}}"/>
                 </ScrollViewer>
             </Grid>
         </Grid>
