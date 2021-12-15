@@ -35,7 +35,7 @@
             <GridSplitter Grid.Column="1" HorizontalAlignment="Stretch" Width="2"/>
 
             <Grid Grid.Column="2" Background="Black">
-                
+                <TextBlock Text="{Binding CurrentValue, StringFormat=CurrentValue : {0}}" Foreground="WhiteSmoke" VerticalAlignment="Center" Margin="32,0,0,0"/>
             </Grid>
         </Grid>
 
@@ -43,6 +43,7 @@
 
         <tl:TimelineEditor Grid.Row="2" 
                            ItemsSource="{Binding Tracks}"
+                           CurrentValue="{Binding CurrentValue}"
                            TimelineLaneBackground="#FF303030"
                            BeginKeyMovingCommand="{Binding BeginKeyMovingCommand}"
                            KeyMovingCommand="{Binding KeyMovingCommand}"
@@ -58,6 +59,14 @@
             <tl:TimelineEditor.TrackInputBindings>
                 <KeyBinding Gesture="Delete" Command="{Binding DeleteOnTrackCommand}"/>
             </tl:TimelineEditor.TrackInputBindings>
+
+            <tl:TimelineEditor.TrackHeaderTemplate>
+                <DataTemplate>
+                    <Border BorderThickness="0,0,0,1" Background="#FF444444" BorderBrush="Black">
+                        <TextBlock Text="Tracks" Foreground="WhiteSmoke" VerticalAlignment="Center" Margin="8,0,0,0"/>
+                    </Border>
+                </DataTemplate>
+            </tl:TimelineEditor.TrackHeaderTemplate>
 
             <tl:TimelineEditor.TrackListBoxStyle>
                 <Style TargetType="{x:Type ListBox}">

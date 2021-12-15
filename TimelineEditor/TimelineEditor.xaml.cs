@@ -31,7 +31,23 @@ namespace Timeline
             set => SetValue(TimelineLaneWidthProperty, value);
         }
         public static readonly DependencyProperty TimelineLaneWidthProperty =
-            DependencyProperty.Register(nameof(TimelineLaneWidth), typeof(double), typeof(TimelineEditor), new FrameworkPropertyMetadata(1000.0, TimelineLaneWidthPropertyChanged));
+            DependencyProperty.Register(nameof(TimelineLaneWidth), typeof(double), typeof(TimelineEditor), new FrameworkPropertyMetadata(800.0, TimelineLaneWidthPropertyChanged));
+
+        public double UnitStep
+        {
+            get => (double)GetValue(UnitStepProperty);
+            set => SetValue(UnitStepProperty, value);
+        }
+        public static readonly DependencyProperty UnitStepProperty =
+            DependencyProperty.Register(nameof(UnitStep), typeof(double), typeof(TimelineEditor), new FrameworkPropertyMetadata(1.0, UnitStepPropertyChanged));
+
+        public double CurrentValue
+        {
+            get => (double)GetValue(CurrentValueProperty);
+            set => SetValue(CurrentValueProperty, value);
+        }
+        public static readonly DependencyProperty CurrentValueProperty =
+            DependencyProperty.Register(nameof(CurrentValue), typeof(double), typeof(TimelineEditor), new FrameworkPropertyMetadata(0.0, FrameworkPropertyMetadataOptions.BindsTwoWayByDefault, CurrentValuePropertyChanged));
 
         public Point MousePositionOnTimelineLane
         {
@@ -48,6 +64,14 @@ namespace Timeline
         }
         public static readonly DependencyProperty ItemsSourceProperty =
             DependencyProperty.Register(nameof(ItemsSource), typeof(IEnumerable), typeof(TimelineEditor), new FrameworkPropertyMetadata(null, ItemsSourcePropertyChanged));
+
+        public DataTemplate TrackHeaderTemplate
+        {
+            get => (DataTemplate)GetValue(TrackHeaderTemplateProperty);
+            set => SetValue(TrackHeaderTemplateProperty, value);
+        }
+        public static readonly DependencyProperty TrackHeaderTemplateProperty =
+            DependencyProperty.Register(nameof(TrackHeaderTemplate), typeof(DataTemplate), typeof(TimelineEditor), new FrameworkPropertyMetadata(null, TrackHeaderTemplatePropertyChanged));
 
         public Style TrackListBoxStyle
         {
@@ -165,10 +189,13 @@ namespace Timeline
             LaneWidthTextBox.KeyDown += LaneWidthTextBox_KeyDown;
             LaneWidthTextBox.LostKeyboardFocus += LaneWidthTextBox_LostKeyboardFocus;
 
+            // Rulerも含めた領域で検知するため、Gridでイベントを購読する
             TimelineLaneGrid.MouseLeftButtonDown += TimelineLaneMouseLeftButtonDown;
 
             TimelineLaneCanvas.MouseEnter += RaiseMousePositionOnTimelineLane;
             TimelineLaneCanvas.MouseMove += RaiseMousePositionOnTimelineLane;
+
+            TimelineMarker.MarkerPositionChanged += MarkerPositionChanged;
 
             // UserControlのInitializeComponentが完了した直後だと、ListBoxの子階層のコントロールはまだ構築されていない。
             // Loadedイベント時点でUserControl内のコントロール要素の構築が完了しているので、子階層内部のScrollViewerが取得できる
@@ -179,6 +206,7 @@ namespace Timeline
                 _TrackListboxScrollViewer = FrameworkElementFinder.FirstFromChild<ScrollViewer>(TrackListBox);
                 _TrackListboxScrollViewer.ScrollChanged += TrackListBox_ScrollChanged;
 
+                TimelineLaneScrollViewer.SizeChanged += TimelineLaneScrollViewer_SizeChanged;
                 TimelineLaneScrollViewer.ScrollChanged += TimelineLaneScrollViewer_ScrollChanged;
 
                 // InputBinding
@@ -219,7 +247,7 @@ namespace Timeline
 
         protected override void OnPreviewKeyUp(KeyEventArgs e)
         {
-            if(e.Key == Key.LeftCtrl || e.Key == Key.RightCtrl)
+            if (e.Key == Key.LeftCtrl || e.Key == Key.RightCtrl)
             {
                 TimelineMarker.Visibility = Visibility.Collapsed;
             }
@@ -240,7 +268,7 @@ namespace Timeline
 
                 _IsKeyDragMoving = false;
             }
-            else if(TimelineMarker.Visibility == Visibility.Collapsed)
+            else if (TimelineMarker.Visibility == Visibility.Collapsed)
             {
                 // シングルクリック時のみ処理
                 // Key追加後であれば、LaneClickによる選択解除はしない（新規追加のKeyが選択状態の可能性があるため）
@@ -249,7 +277,7 @@ namespace Timeline
                     LaneClickedCommand.Execute(e);
                 }
             }
-            
+
             // TimelineMarkerのVisibilityを見て、LaneClickedの判断をしてからCollapsedにする
             TimelineMarker.Visibility = Visibility.Collapsed;
         }
@@ -265,9 +293,9 @@ namespace Timeline
 
                 UpdatePositionOnTimelineLane(e);
             }
-            else if (IsKeyDownCtrl())
+            else if (IsKeyDownCtrl() && e.LeftButton == MouseButtonState.Pressed)
             {
-                TimelineMarker.CurrentPosition = Math.Max(0, e.GetPosition(TimelineMarker).X);
+                TimelineMarker.UpdatePosition(e.GetPosition(TimelineMarker).X);
             }
         }
 
@@ -277,7 +305,7 @@ namespace Timeline
             {
                 if (_IsKeyDragMoving == false)
                 {
-                    TimelineMarker.CurrentPosition = Mouse.GetPosition(TimelineMarker).X;
+                    TimelineMarker.UpdatePosition(Mouse.GetPosition(TimelineMarker).X);
                     TimelineMarker.Visibility = Visibility.Visible;
                 }
             }
@@ -288,6 +316,18 @@ namespace Timeline
             var editor = (TimelineEditor)d;
 
             editor.UpdateTimelineLaneWidth();
+        }
+
+        static void UnitStepPropertyChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
+        {
+            var editor = (TimelineEditor)d;
+            editor.TimelineRuler.UnitStep = (double)e.NewValue;
+        }
+
+        static void CurrentValuePropertyChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
+        {
+            var editor = (TimelineEditor)d;
+            editor.TimelineMarker.CurrentPosition = (double)e.NewValue * editor.TimelineRuler.UnitDistance;
         }
 
         static void ItemsSourcePropertyChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
@@ -323,6 +363,12 @@ namespace Timeline
         {
             var editor = (TimelineEditor)d;
             editor.TrackListBox.ItemContainerStyle = (Style)e.NewValue;
+        }
+
+        static void TrackHeaderTemplatePropertyChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
+        {
+            var editor = (TimelineEditor)d;
+            editor.TrackHeader.ContentTemplate = (DataTemplate)e.NewValue;
         }
 
         static void TrackListBoxStylePropertyChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
@@ -446,6 +492,11 @@ namespace Timeline
             MousePositionOnTimelineLane = new Point(Math.Max(0, pos.X), pos.Y);
         }
 
+        void MarkerPositionChanged(object? sender, double position)
+        {
+            CurrentValue = position / TimelineRuler.UnitDistance;
+        }
+
         void ParseLaneWidthText()
         {
             if (double.TryParse(LaneWidthTextBox.Text, out double trackLaneWidth))
@@ -462,10 +513,11 @@ namespace Timeline
         {
             foreach (var laneCanvas in TimelineLaneCanvas.Children.OfType<TimelineLaneCanvas>())
             {
-                laneCanvas.MinWidth = TimelineLaneWidth;
+                laneCanvas.Width = TimelineLaneWidth;
             }
 
             TimelineRuler.Width = TimelineLaneWidth;
+            TimelineLaneCanvas.Width = TimelineLaneWidth;
         }
 
         void ItemsSourceCollectionChanged(object? sender, NotifyCollectionChangedEventArgs e)
@@ -527,7 +579,6 @@ namespace Timeline
                     SelectedTimelineKeyList.Remove(key);
                 }
 
-                removeLane.MouseLeftButtonDown -= TimelineLaneMouseLeftButtonDown;
                 removeLane.KeySelectionChangedEvent -= TimelineKeySelectionChangedEventHandler;
                 removeLane.KeyTouchEvent -= TimelineKeyTouchEventHandler;
                 removeLane.KeyAddedEvent -= TimelineKeyAddedEventHandler;
@@ -556,7 +607,6 @@ namespace Timeline
             laneCanvas.KeyRemovedEvent += TimelineKeyRemovedEventHandler;
             laneCanvas.KeyTouchEvent += TimelineKeyTouchEventHandler;
             laneCanvas.KeySelectionChangedEvent += TimelineKeySelectionChangedEventHandler;
-            laneCanvas.MouseLeftButtonDown += TimelineLaneMouseLeftButtonDown;
 
             laneCanvas.ApplyTemplate();
 
@@ -568,12 +618,18 @@ namespace Timeline
 
         void TimelineLaneMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
         {
-            if (IsKeyDownCtrl())
+            if (IsKeyDownCtrl() && e.LeftButton == MouseButtonState.Pressed)
             {
-                TimelineMarker.Visibility = Visibility.Visible;
-                TimelineMarker.CurrentPosition = e.GetPosition(TimelineMarker).X;
+                var pos = e.GetPosition(TimelineLaneScrollViewer);
 
-                e.MouseDevice.Capture(this);
+                // スクロールバー上でMarkerは出さない
+                if (0.0 <= pos.X && pos.X < TimelineLaneScrollViewer.ViewportWidth && -24 <= pos.Y && pos.Y < TimelineLaneScrollViewer.ViewportHeight)
+                {
+                    TimelineMarker.Visibility = Visibility.Visible;
+                    TimelineMarker.CurrentPosition = e.GetPosition(TimelineMarker).X;
+
+                    e.MouseDevice.Capture(this);
+                }
             }
         }
 
@@ -657,9 +713,14 @@ namespace Timeline
             TimelineLaneScrollViewer.ScrollToVerticalOffset(e.VerticalOffset);
         }
 
+        void TimelineLaneScrollViewer_SizeChanged(object sender, SizeChangedEventArgs e)
+        {
+            TimelineRuler.InvalidateVisual();
+        }
+
         void TimelineLaneScrollViewer_ScrollChanged(object sender, ScrollChangedEventArgs e)
         {
-            TimelineRuler.Offset = new Point(e.HorizontalOffset, 0);
+            TimelineRuler.Offset = new Point(-e.HorizontalOffset, 0);
             _TrackListboxScrollViewer.ScrollToVerticalOffset(e.VerticalOffset);
         }
     }

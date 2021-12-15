@@ -140,6 +140,13 @@ namespace Test.ViewModels
         public ViewModelCommand DeleteOnLaneCommand => _DeleteOnLaneCommand.Get(DeleteOnLane);
         ViewModelCommandHandler _DeleteOnLaneCommand = new ViewModelCommandHandler();
 
+        public double CurrentValue
+        {
+            get => _CurrentValue;
+            set => RaisePropertyChangedIfSet(ref _CurrentValue, value);
+        }
+        double _CurrentValue = 0;
+
         public Point MousePositionOnTimelineLane
         {
             get => _MousePositionOnTimelineLane;

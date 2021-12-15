@@ -189,7 +189,7 @@ namespace Timeline.Controls
 
         protected override void OnRender(DrawingContext dc)
         {
-            dc.DrawRectangle(Background, null, new Rect(0, 0, ActualWidth, ActualHeight - 1));
+            dc.DrawRectangle(Background, null, new Rect(0, 0, ActualWidth, ActualHeight-1));
             dc.DrawLine(_UnderBorderPen, new Point(0, ActualHeight), new Point(ActualWidth, ActualHeight));
         }
 

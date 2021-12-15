@@ -20,13 +20,29 @@ namespace Timeline.Controls
         public static readonly DependencyProperty ScaleProperty =
             DependencyProperty.Register(nameof(Scale), typeof(double), typeof(TimelineRuler), new FrameworkPropertyMetadata(1.0, FrameworkPropertyMetadataOptions.AffectsRender));
 
-        public double Step
+        public double UnitStep
         {
-            get => (double)GetValue(StepProperty);
-            set => SetValue(StepProperty, value);
+            get => (double)GetValue(UnitStepProperty);
+            set => SetValue(UnitStepProperty, value);
         }
-        public static readonly DependencyProperty StepProperty =
-            DependencyProperty.Register(nameof(Step), typeof(double), typeof(TimelineRuler), new FrameworkPropertyMetadata(1.0, FrameworkPropertyMetadataOptions.AffectsRender));
+        public static readonly DependencyProperty UnitStepProperty =
+            DependencyProperty.Register(nameof(UnitStep), typeof(double), typeof(TimelineRuler), new FrameworkPropertyMetadata(1.0, FrameworkPropertyMetadataOptions.AffectsRender));
+
+        public double UnitDistance
+        {
+            get => (double)GetValue(UnitDistanceProperty);
+            set => SetValue(UnitDistanceProperty, value);
+        }
+        public static readonly DependencyProperty UnitDistanceProperty =
+            DependencyProperty.Register(nameof(UnitDistance), typeof(double), typeof(TimelineRuler), new FrameworkPropertyMetadata(100.0, FrameworkPropertyMetadataOptions.AffectsRender));
+
+        public int SubUnitCount
+        {
+            get => (int)GetValue(SubUnitCountProperty);
+            set => SetValue(SubUnitCountProperty, value);
+        }
+        public static readonly DependencyProperty SubUnitCountProperty =
+            DependencyProperty.Register(nameof(SubUnitCount), typeof(int), typeof(TimelineRuler), new FrameworkPropertyMetadata(10, FrameworkPropertyMetadataOptions.AffectsRender));
 
         public Point Offset
         {
@@ -69,10 +85,8 @@ namespace Timeline.Controls
         static Typeface Typeface { get; } = new Typeface("Verdana");
         static double LineOffset = 4;
         static double LineLength = 5 + LineOffset;
-        static double LineDistance = 100;
         static double SubLineOffset = 1;
         static double SubLineLength = 5 + SubLineOffset;
-        static double SubLineDistance = LineDistance / 10;
         static double TextHorizontalOffset = 2;
 
         static void ColorPropertyChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
@@ -117,28 +131,30 @@ namespace Timeline.Controls
         void OnRenderHorizontal(DrawingContext dc)
         {
             double s = Math.Max(Scale, 1);
-            double numScale = Math.Max(1.0 / Scale, 1);
 
-            int init = Math.Max(0, (int)(-Offset.X / LineDistance) - 1);
-            int count = (int)((-Offset.X + ActualWidth) / LineDistance) + 1;
-
-            // 親のGridの高さを取得
+            // 親Gridの縦横を取得
             var parentGrid = (Grid)Parent;
+            var parentActualWidth = parentGrid.ActualWidth;
             var parentActualHeight = parentGrid.ActualHeight;
+
+            int init = Math.Max(0, (int)(-Offset.X / UnitDistance) - 1);
+            int count = (int)((-Offset.X + parentActualWidth) / UnitDistance) + 1;
+
+            double subLineDistance = UnitDistance / SubUnitCount;
 
             for (int i = init; i < count; ++i)
             {
-                double num = i * LineDistance;
+                double num = i * UnitDistance;
                 double x = (num + Offset.X) * s;
                 dc.DrawLine(_LinePen, new Point(x, LineOffset), new Point(x, LineOffset + parentActualHeight));
 
                 for (int j = 1; j < 10; ++j)
                 {
-                    double sub_x = x + j * SubLineDistance * s;
+                    double sub_x = x + j * subLineDistance * s;
                     dc.DrawLine(_SubLinePen, new Point(sub_x, SubLineOffset), new Point(sub_x, SubLineLength));
                 }
 
-                int numText = (int)(num * numScale);
+                int numText = (int)(UnitStep * i);
                 var text = new FormattedText($"{numText}", CultureInfo.CurrentCulture, FlowDirection.LeftToRight, Typeface, 8, Foreground, 1.0);
                 dc.DrawText(text, new Point(x + TextHorizontalOffset, LineLength));
             }
@@ -149,17 +165,20 @@ namespace Timeline.Controls
             double s = Math.Max(Scale, 1);
             double numScale = Math.Max(1.0 / Scale, 1);
 
-            int init = (int)(-Offset.Y / LineDistance) - 1;
-            int count = (int)((-Offset.Y + ActualHeight) / LineDistance) + 1;
+            int init = (int)(-Offset.Y / UnitDistance) - 1;
+            int count = (int)((-Offset.Y + ActualHeight) / UnitDistance) + 1;
+
+            double subLineDistance = UnitDistance / SubUnitCount;
+
             for (int i = init; i < count; ++i)
             {
-                double num = i * LineDistance;
+                double num = i * UnitDistance;
                 double y = (num + Offset.Y) * s;
                 dc.DrawLine(_LinePen, new Point(LineOffset, y), new Point(LineLength, y));
 
                 for (int j = 1; j < 10; ++j)
                 {
-                    double sub_y = y + j * SubLineDistance * s;
+                    double sub_y = y + j * subLineDistance * s;
                     dc.DrawLine(_SubLinePen, new Point(SubLineOffset, sub_y), new Point(SubLineLength, sub_y));
                 }
 
