@@ -33,6 +33,22 @@ namespace Timeline
         public static readonly DependencyProperty TimelineLaneWidthProperty =
             DependencyProperty.Register(nameof(TimelineLaneWidth), typeof(double), typeof(TimelineEditor), new FrameworkPropertyMetadata(800.0, TimelineLaneWidthPropertyChanged));
 
+        public bool IsPlaying
+        {
+            get => (bool)GetValue(IsPlayingProperty);
+            set => SetValue(IsPlayingProperty, value);
+        }
+        public static readonly DependencyProperty IsPlayingProperty =
+            DependencyProperty.Register(nameof(IsPlaying), typeof(bool), typeof(TimelineEditor), new FrameworkPropertyMetadata(false, IsPlayingPropertyChanged));
+
+        public bool IsDisplayMarkerAlways
+        {
+            get => (bool)GetValue(IsDisplayMarkerAlwaysProperty);
+            set => SetValue(IsDisplayMarkerAlwaysProperty, value);
+        }
+        public static readonly DependencyProperty IsDisplayMarkerAlwaysProperty =
+            DependencyProperty.Register(nameof(IsDisplayMarkerAlways), typeof(bool), typeof(TimelineEditor), new FrameworkPropertyMetadata(false, IsDisplayMarkerAlwaysPropertyChanged));
+
         public double UnitStep
         {
             get => (double)GetValue(UnitStepProperty);
@@ -41,13 +57,13 @@ namespace Timeline
         public static readonly DependencyProperty UnitStepProperty =
             DependencyProperty.Register(nameof(UnitStep), typeof(double), typeof(TimelineEditor), new FrameworkPropertyMetadata(1.0, UnitStepPropertyChanged));
 
-        public double CurrentValue
+        public double CurrentTime
         {
-            get => (double)GetValue(CurrentValueProperty);
-            set => SetValue(CurrentValueProperty, value);
+            get => (double)GetValue(CurrentTimeProperty);
+            set => SetValue(CurrentTimeProperty, value);
         }
-        public static readonly DependencyProperty CurrentValueProperty =
-            DependencyProperty.Register(nameof(CurrentValue), typeof(double), typeof(TimelineEditor), new FrameworkPropertyMetadata(0.0, FrameworkPropertyMetadataOptions.BindsTwoWayByDefault, CurrentValuePropertyChanged));
+        public static readonly DependencyProperty CurrentTimeProperty =
+            DependencyProperty.Register(nameof(CurrentTime), typeof(double), typeof(TimelineEditor), new FrameworkPropertyMetadata(0.0, FrameworkPropertyMetadataOptions.BindsTwoWayByDefault, CurrentTimePropertyChanged));
 
         public Point MousePositionOnTimelineLane
         {
@@ -176,6 +192,7 @@ namespace Timeline
         bool _IsKeySelectionChanging = false;                   // KeyのIsSelectedが変更されて内部処理をしている状態かどうか
         bool _IsKeySelectWithMouseLeftButtonPushing = false;    // Key選択でMouseLeftButtonが押し続けられているかのフラグ
         TimelineKey? _DraggingKey = null;
+        DispatcherTimer? _PlayingTimer = null;
 
         // 無駄な生成だけどLoadedで取得処理を書いても警告は消せないのでダミーで生成
         ScrollViewer _TrackListboxScrollViewer = new ScrollViewer();
@@ -247,7 +264,7 @@ namespace Timeline
 
         protected override void OnPreviewKeyUp(KeyEventArgs e)
         {
-            if (e.Key == Key.LeftCtrl || e.Key == Key.RightCtrl)
+            if (IsPlaying == false && (e.Key == Key.LeftCtrl || e.Key == Key.RightCtrl))
             {
                 TimelineMarker.Visibility = Visibility.Collapsed;
             }
@@ -256,6 +273,11 @@ namespace Timeline
         protected override void OnMouseLeftButtonUp(MouseButtonEventArgs e)
         {
             ReleaseMouseCapture();
+
+            if(IsPlaying)
+            {
+                return;
+            }
 
             // DragによるKey移動をしていたなら、選択はそのままにしておく
             if (_IsKeyDragMoving)
@@ -284,6 +306,11 @@ namespace Timeline
 
         protected override void OnMouseMove(MouseEventArgs e)
         {
+            if (IsPlaying)
+            {
+                return;
+            }
+
             if (_IsKeyDragMoving)
             {
                 if (KeyMovingCommand != null && KeyMovingCommand.CanExecute(MousePositionOnTimelineLane))
@@ -293,7 +320,7 @@ namespace Timeline
 
                 UpdatePositionOnTimelineLane(e);
             }
-            else if (IsKeyDownCtrl() && e.LeftButton == MouseButtonState.Pressed)
+            else if (CanMoveMarker())
             {
                 TimelineMarker.UpdatePosition(e.GetPosition(TimelineMarker).X);
             }
@@ -301,7 +328,12 @@ namespace Timeline
 
         protected override void OnKeyDown(KeyEventArgs e)
         {
-            if (IsKeyDownCtrl() && Mouse.LeftButton == MouseButtonState.Pressed && _IsKeySelectWithMouseLeftButtonPushing == false)
+            if (IsPlaying)
+            {
+                return;
+            }
+
+            if (CanMoveMarker() && _IsKeySelectWithMouseLeftButtonPushing == false)
             {
                 if (_IsKeyDragMoving == false)
                 {
@@ -318,13 +350,32 @@ namespace Timeline
             editor.UpdateTimelineLaneWidth();
         }
 
+        static void IsPlayingPropertyChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
+        {
+            var editor = (TimelineEditor)d;
+            editor.UpdatePlayingState((bool)e.NewValue);
+        }
+
+        static void IsDisplayMarkerAlwaysPropertyChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
+        {
+            var editor = (TimelineEditor)d;
+            if ((bool)e.NewValue)
+            {
+                editor.TimelineMarker.Visibility = Visibility.Visible;
+            }
+            else if(editor.IsPlaying == false)
+            {
+                editor.TimelineMarker.Visibility = Visibility.Collapsed;
+            }
+        }
+
         static void UnitStepPropertyChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
         {
             var editor = (TimelineEditor)d;
             editor.TimelineRuler.UnitStep = (double)e.NewValue;
         }
 
-        static void CurrentValuePropertyChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
+        static void CurrentTimePropertyChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
         {
             var editor = (TimelineEditor)d;
             editor.TimelineMarker.CurrentPosition = (double)e.NewValue * editor.TimelineRuler.UnitDistance;
@@ -421,6 +472,11 @@ namespace Timeline
             editor.TimelineLaneCanvas.InputBindings.AddRange((InputBindingCollection)e.NewValue);
         }
 
+        bool CanMoveMarker()
+        {
+            return IsKeyDownCtrl() && _PlayingTimer == null && Mouse.LeftButton == MouseButtonState.Pressed;
+        }
+
         void LaneWidthTextBox_KeyDown(object sender, KeyEventArgs e)
         {
             if (e.Key == Key.Enter)
@@ -430,6 +486,40 @@ namespace Timeline
 
                 LaneWidthTextBox.SelectAll();
             }
+        }
+
+        void UpdatePlayingState(bool playingState)
+        {
+            if(playingState)
+            {
+                if (_PlayingTimer != null)
+                {
+                    throw new InvalidProgramException();
+                }
+                _PlayingTimer = new DispatcherTimer();
+                _PlayingTimer.Interval = TimeSpan.FromMilliseconds(16.0);
+                _PlayingTimer.Tick += PlayingTimer_Tick;
+                _PlayingTimer.IsEnabled = true;
+
+                TimelineMarker.Visibility = Visibility.Visible;
+            }
+            else
+            {
+                if(_PlayingTimer == null)
+                {
+                    throw new InvalidProgramException();
+                }
+                _PlayingTimer.Stop();
+                _PlayingTimer.Tick -= PlayingTimer_Tick;
+                _PlayingTimer = null;
+
+                TimelineMarker.Visibility = IsDisplayMarkerAlways ? Visibility.Visible : Visibility.Collapsed;
+            }
+        }
+
+        void PlayingTimer_Tick(object? sender, EventArgs e)
+        {
+            TimelineMarker.CurrentPosition += 1.0;
         }
 
         void LaneWidthTextBox_LostKeyboardFocus(object sender, KeyboardFocusChangedEventArgs e)
@@ -494,7 +584,7 @@ namespace Timeline
 
         void MarkerPositionChanged(object? sender, double position)
         {
-            CurrentValue = position / TimelineRuler.UnitDistance;
+            CurrentTime = position / TimelineRuler.UnitDistance;
         }
 
         void ParseLaneWidthText()
@@ -618,7 +708,7 @@ namespace Timeline
 
         void TimelineLaneMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
         {
-            if (IsKeyDownCtrl() && e.LeftButton == MouseButtonState.Pressed)
+            if (CanMoveMarker())
             {
                 var pos = e.GetPosition(TimelineLaneScrollViewer);
 

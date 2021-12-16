@@ -30,20 +30,25 @@
             
             <StackPanel Grid.Column="0">
                 <Button Content="Add Track" Command="{Binding AddTrackCommand}"/>
+                <Button Content="Play or Stop" Command="{Binding SwitchPlayingStateCommand}"/>
+                <Button Content="Reset time" Command="{Binding ResetTimeCommand}"/>
+                <CheckBox Content="Display marker always" IsChecked="{Binding IsDisplayMarkerAlways}"/>
             </StackPanel>
 
             <GridSplitter Grid.Column="1" HorizontalAlignment="Stretch" Width="2"/>
 
             <Grid Grid.Column="2" Background="Black">
-                <TextBlock Text="{Binding CurrentValue, StringFormat=CurrentValue : {0}}" Foreground="WhiteSmoke" VerticalAlignment="Center" Margin="32,0,0,0"/>
+                <TextBlock Text="{Binding CurrentTime, StringFormat=CurrentTime : {0:F2}}" Foreground="WhiteSmoke" VerticalAlignment="Center" Margin="32,0,0,0"/>
             </Grid>
         </Grid>
 
         <GridSplitter Grid.Row="1" Height="2" HorizontalAlignment="Stretch"/>
 
         <tl:TimelineEditor Grid.Row="2" 
+                           IsPlaying="{Binding IsPlaying}"
                            ItemsSource="{Binding Tracks}"
-                           CurrentValue="{Binding CurrentValue}"
+                           CurrentTime="{Binding CurrentTime}"
+                           IsDisplayMarkerAlways="{Binding IsDisplayMarkerAlways}"
                            TimelineLaneBackground="#FF303030"
                            BeginKeyMovingCommand="{Binding BeginKeyMovingCommand}"
                            KeyMovingCommand="{Binding KeyMovingCommand}"

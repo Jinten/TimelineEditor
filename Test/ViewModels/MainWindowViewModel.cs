@@ -140,12 +140,32 @@ namespace Test.ViewModels
         public ViewModelCommand DeleteOnLaneCommand => _DeleteOnLaneCommand.Get(DeleteOnLane);
         ViewModelCommandHandler _DeleteOnLaneCommand = new ViewModelCommandHandler();
 
-        public double CurrentValue
+        public ViewModelCommand SwitchPlayingStateCommand => _SwitchPlayingStateCommand.Get(SwitchPlayingState);
+        ViewModelCommandHandler _SwitchPlayingStateCommand = new ViewModelCommandHandler();
+
+        public ViewModelCommand ResetTimeCommand => _ResetTimeCommand.Get(ResetTime);
+        ViewModelCommandHandler _ResetTimeCommand = new ViewModelCommandHandler();
+
+        public bool IsPlaying
         {
-            get => _CurrentValue;
-            set => RaisePropertyChangedIfSet(ref _CurrentValue, value);
+            get => _IsPlaying;
+            set => RaisePropertyChangedIfSet(ref _IsPlaying, value);
         }
-        double _CurrentValue = 0;
+        bool _IsPlaying;
+
+        public bool IsDisplayMarkerAlways
+        {
+            get => _IsDisplayMarkerAlways;
+            set => RaisePropertyChangedIfSet(ref _IsDisplayMarkerAlways, value);
+        }
+        bool _IsDisplayMarkerAlways;        
+
+        public double CurrentTime
+        {
+            get => _CurrentTime;
+            set => RaisePropertyChangedIfSet(ref _CurrentTime, value);
+        }
+        double _CurrentTime = 0;
 
         public Point MousePositionOnTimelineLane
         {
@@ -255,6 +275,16 @@ namespace Test.ViewModels
             {
                 track.DeleteSelectedKeys();
             }
+        }
+
+        void SwitchPlayingState()
+        {
+            IsPlaying = !IsPlaying;
+        }
+
+        void ResetTime()
+        {
+            CurrentTime = 0;
         }
     }
 }
