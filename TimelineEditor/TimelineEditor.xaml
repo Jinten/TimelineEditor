@@ -45,7 +45,13 @@
                                      HorizontalAlignment="Left"
                                      VerticalAlignment="Top"/>
 
-                <ctrls:TimelineMarker x:Name="TimelineMarker" LineColor="#CCFF0000" BackWidth="24" Panel.ZIndex="2" Visibility="Collapsed" HorizontalAlignment="Left"/>
+                <ctrls:TimelineMarker x:Name="TimelineMarker"
+                                      LineColor="#CCFF0000"
+                                      BackWidth="24" 
+                                      Panel.ZIndex="2"
+                                      Visibility="Collapsed"
+                                      HorizontalAlignment="Left"
+                                      IsHitTestVisible="False"/>
 
                 <!--
                 ScrollViewerがFocusされると、コントロール側で勝手にMouseLeftButtonがハンドリングされる

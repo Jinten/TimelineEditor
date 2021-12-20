@@ -1,4 +1,4 @@
-using System;
+ï»¿using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Collections.Specialized;
@@ -188,14 +188,16 @@ namespace Timeline
 
         List<TimelineKey> SelectedTimelineKeyList { get; } = new List<TimelineKey>();
 
-        bool _IsKeyDragMoving = false;                          // Key‚ğDrag‚ÅˆÚ“®‚µ‚Ä‚¢‚é‚©‚Ç‚¤‚©‚Ìƒtƒ‰ƒO
-        bool _IsKeySelectionChanging = false;                   // Key‚ÌIsSelected‚ª•ÏX‚³‚ê‚Ä“à•”ˆ—‚ğ‚µ‚Ä‚¢‚éó‘Ô‚©‚Ç‚¤‚©
-        bool _IsKeySelectWithMouseLeftButtonPushing = false;    // Key‘I‘ğ‚ÅMouseLeftButton‚ª‰Ÿ‚µ‘±‚¯‚ç‚ê‚Ä‚¢‚é‚©‚Ìƒtƒ‰ƒO
+        bool _IsKeyDragMoving = false;                          // Keyã‚’Dragã§ç§»å‹•ã—ã¦ã„ã‚‹ã‹ã©ã†ã‹ã®ãƒ•ãƒ©ã‚°
+        bool _IsKeySelectionChanging = false;                   // Keyã®IsSelectedãŒå¤‰æ›´ã•ã‚Œã¦å†…éƒ¨å‡¦ç†ã‚’ã—ã¦ã„ã‚‹çŠ¶æ…‹ã‹ã©ã†ã‹
+        bool _IsKeySelectWithMouseLeftButtonPushing = false;    // Keyé¸æŠã§MouseLeftButtonãŒæŠ¼ã—ç¶šã‘ã‚‰ã‚Œã¦ã„ã‚‹ã‹ã®ãƒ•ãƒ©ã‚°
+        bool _IsDraggingToDisplayMarker = false;                // Draggingã«ã‚ˆã‚‹Markerè¡¨ç¤ºã‹ã©ã†ã‹
+
         TimelineKey? _DraggingKey = null;
         DispatcherTimer? _PlayingTimer = null;
 
-        // –³‘Ê‚È¶¬‚¾‚¯‚ÇLoaded‚Åæ“¾ˆ—‚ğ‘‚¢‚Ä‚àŒx‚ÍÁ‚¹‚È‚¢‚Ì‚Åƒ_ƒ~[‚Å¶¬
-        ScrollViewer _TrackListboxScrollViewer = new ScrollViewer();
+        // ç„¡é§„ãªç”Ÿæˆã ã‘ã©Loadedã§å–å¾—å‡¦ç†ã‚’æ›¸ã„ã¦ã‚‚è­¦å‘Šã¯æ¶ˆã›ãªã„ã®ã§ãƒ€ãƒŸãƒ¼ã§ç”Ÿæˆ
+        ScrollViewer? _TrackListboxScrollViewer;
 
         public TimelineEditor()
         {
@@ -206,7 +208,7 @@ namespace Timeline
             LaneWidthTextBox.KeyDown += LaneWidthTextBox_KeyDown;
             LaneWidthTextBox.LostKeyboardFocus += LaneWidthTextBox_LostKeyboardFocus;
 
-            // Ruler‚àŠÜ‚ß‚½—Ìˆæ‚ÅŒŸ’m‚·‚é‚½‚ßAGrid‚ÅƒCƒxƒ“ƒg‚ğw“Ç‚·‚é
+            // Rulerã‚‚å«ã‚ãŸé ˜åŸŸã§æ¤œçŸ¥ã™ã‚‹ãŸã‚ã€Gridã§ã‚¤ãƒ™ãƒ³ãƒˆã‚’è³¼èª­ã™ã‚‹
             TimelineLaneGrid.MouseLeftButtonDown += TimelineLaneMouseLeftButtonDown;
 
             TimelineLaneCanvas.MouseEnter += RaiseMousePositionOnTimelineLane;
@@ -214,8 +216,8 @@ namespace Timeline
 
             TimelineMarker.MarkerPositionChanged += MarkerPositionChanged;
 
-            // UserControl‚ÌInitializeComponent‚ªŠ®—¹‚µ‚½’¼Œã‚¾‚ÆAListBox‚ÌqŠK‘w‚ÌƒRƒ“ƒgƒ[ƒ‹‚Í‚Ü‚¾\’z‚³‚ê‚Ä‚¢‚È‚¢B
-            // LoadedƒCƒxƒ“ƒg“_‚ÅUserControl“à‚ÌƒRƒ“ƒgƒ[ƒ‹—v‘f‚Ì\’z‚ªŠ®—¹‚µ‚Ä‚¢‚é‚Ì‚ÅAqŠK‘w“à•”‚ÌScrollViewer‚ªæ“¾‚Å‚«‚é
+            // UserControlã®InitializeComponentãŒå®Œäº†ã—ãŸç›´å¾Œã ã¨ã€ListBoxã®å­éšå±¤ã®ã‚³ãƒ³ãƒˆãƒ­ãƒ¼ãƒ«ã¯ã¾ã æ§‹ç¯‰ã•ã‚Œã¦ã„ãªã„ã€‚
+            // Loadedã‚¤ãƒ™ãƒ³ãƒˆæ™‚ç‚¹ã§UserControlå†…ã®ã‚³ãƒ³ãƒˆãƒ­ãƒ¼ãƒ«è¦ç´ ã®æ§‹ç¯‰ãŒå®Œäº†ã—ã¦ã„ã‚‹ã®ã§ã€å­éšå±¤å†…éƒ¨ã®ScrollViewerãŒå–å¾—ã§ãã‚‹
             Loaded += (sender, e) =>
             {
                 UpdateTimelineLaneWidth();
@@ -246,6 +248,11 @@ namespace Timeline
                     notifyCollection.CollectionChanged -= ItemsSourceCollectionChanged;
                 }
 
+                if(_TrackListboxScrollViewer == null)
+                {
+                    throw new InvalidCastException();
+                }
+
                 _TrackListboxScrollViewer.ScrollChanged -= TrackListBox_ScrollChanged;
 
                 TimelineLaneScrollViewer.ScrollChanged -= TimelineLaneScrollViewer_ScrollChanged;
@@ -264,7 +271,7 @@ namespace Timeline
 
         protected override void OnPreviewKeyUp(KeyEventArgs e)
         {
-            if (IsPlaying == false && (e.Key == Key.LeftCtrl || e.Key == Key.RightCtrl))
+            if (IsPlaying == false && IsDisplayMarkerAlways == false && IsKeyDownCtrl())
             {
                 TimelineMarker.Visibility = Visibility.Collapsed;
             }
@@ -274,15 +281,16 @@ namespace Timeline
         {
             ReleaseMouseCapture();
 
-            if(IsPlaying)
+            if (IsPlaying)
             {
+                _IsDraggingToDisplayMarker = false;
                 return;
             }
 
-            // Drag‚É‚æ‚éKeyˆÚ“®‚ğ‚µ‚Ä‚¢‚½‚È‚çA‘I‘ğ‚Í‚»‚Ì‚Ü‚Ü‚É‚µ‚Ä‚¨‚­
+            // Dragã«ã‚ˆã‚‹Keyç§»å‹•ã‚’ã—ã¦ã„ãŸãªã‚‰ã€é¸æŠã¯ãã®ã¾ã¾ã«ã—ã¦ãŠã
             if (_IsKeyDragMoving)
             {
-                // Mouse‚Ì¶ƒ{ƒ^ƒ“‚ªUp‚³‚ê‚½‚Ì‚ÅAŠÖ˜Aˆ—‚Ìƒtƒ‰ƒO‚ğ‘S‚ÄƒNƒŠƒA
+                // Mouseã®å·¦ãƒœã‚¿ãƒ³ãŒUpã•ã‚ŒãŸã®ã§ã€é–¢é€£å‡¦ç†ã®ãƒ•ãƒ©ã‚°ã‚’å…¨ã¦ã‚¯ãƒªã‚¢
                 if (EndKeyMovingCommand != null && EndKeyMovingCommand.CanExecute(MousePositionOnTimelineLane))
                 {
                     EndKeyMovingCommand.Execute(MousePositionOnTimelineLane);
@@ -290,18 +298,23 @@ namespace Timeline
 
                 _IsKeyDragMoving = false;
             }
-            else if (TimelineMarker.Visibility == Visibility.Collapsed)
+            else if (_IsDraggingToDisplayMarker == false)
             {
-                // ƒVƒ“ƒOƒ‹ƒNƒŠƒbƒN‚Ì‚İˆ—
-                // Key’Ç‰ÁŒã‚Å‚ ‚ê‚ÎALaneClick‚É‚æ‚é‘I‘ğ‰ğœ‚Í‚µ‚È‚¢iV‹K’Ç‰Á‚ÌKey‚ª‘I‘ğó‘Ô‚Ì‰Â”\«‚ª‚ ‚é‚½‚ßj
+                // ã‚·ãƒ³ã‚°ãƒ«ã‚¯ãƒªãƒƒã‚¯æ™‚ã®ã¿å‡¦ç†
+                // Keyè¿½åŠ å¾Œã§ã‚ã‚Œã°ã€LaneClickã«ã‚ˆã‚‹é¸æŠè§£é™¤ã¯ã—ãªã„ï¼ˆæ–°è¦è¿½åŠ ã®KeyãŒé¸æŠçŠ¶æ…‹ã®å¯èƒ½æ€§ãŒã‚ã‚‹ãŸã‚ï¼‰
                 if (LaneClickedCommand != null && LaneClickedCommand.CanExecute(e))
                 {
                     LaneClickedCommand.Execute(e);
                 }
             }
 
-            // TimelineMarker‚ÌVisibility‚ğŒ©‚ÄALaneClicked‚Ì”»’f‚ğ‚µ‚Ä‚©‚çCollapsed‚É‚·‚é
-            TimelineMarker.Visibility = Visibility.Collapsed;
+            if (IsDisplayMarkerAlways == false)
+            {
+                // TimelineMarkerã®Visibilityã‚’è¦‹ã¦ã€LaneClickedã®åˆ¤æ–­ã‚’ã—ã¦ã‹ã‚‰Collapsedã«ã™ã‚‹
+                TimelineMarker.Visibility = Visibility.Collapsed;
+            }
+
+            _IsDraggingToDisplayMarker = false;
         }
 
         protected override void OnMouseMove(MouseEventArgs e)
@@ -320,7 +333,7 @@ namespace Timeline
 
                 UpdatePositionOnTimelineLane(e);
             }
-            else if (CanMoveMarker())
+            else if (CanMoveMarker() && _IsKeySelectWithMouseLeftButtonPushing == false)
             {
                 TimelineMarker.UpdatePosition(e.GetPosition(TimelineMarker).X);
             }
@@ -339,6 +352,8 @@ namespace Timeline
                 {
                     TimelineMarker.UpdatePosition(Mouse.GetPosition(TimelineMarker).X);
                     TimelineMarker.Visibility = Visibility.Visible;
+
+                    _IsDraggingToDisplayMarker = true;
                 }
             }
         }
@@ -389,8 +404,8 @@ namespace Timeline
 
             if (editor.TrackListBox.ItemsSource != null)
             {
-                // •`‰æŒã‚ÌDispatcherPriority‚É’x‰„‚³‚¹‚é‚±‚Æ‚ÅAƒRƒŒƒNƒVƒ‡ƒ“®—ñŒã‚ÌUIˆÊ’u‚ğæ“¾‚Å‚«‚é‚æ‚¤‚É‚·‚é
-                // Normal‚¾‚ÆARender‚æ‚è‚à‚‚¢Priority‚ÅÀs‚³‚ê‚é‚½‚ßAV‹K’Ç‰Á‚³‚ê‚½Item‚Í‚Ü‚¾UIˆÊ’u‚ªŠm’è‚µ‚Ä‚¢‚È‚¢B
+                // æç”»å¾Œã®DispatcherPriorityã«é…å»¶ã•ã›ã‚‹ã“ã¨ã§ã€ã‚³ãƒ¬ã‚¯ã‚·ãƒ§ãƒ³æ•´åˆ—å¾Œã®UIä½ç½®ã‚’å–å¾—ã§ãã‚‹ã‚ˆã†ã«ã™ã‚‹
+                // Normalã ã¨ã€Renderã‚ˆã‚Šã‚‚é«˜ã„Priorityã§å®Ÿè¡Œã•ã‚Œã‚‹ãŸã‚ã€æ–°è¦è¿½åŠ ã•ã‚ŒãŸItemã¯ã¾ã UIä½ç½®ãŒç¢ºå®šã—ã¦ã„ãªã„ã€‚
                 var items = editor.TrackListBox.ItemsSource.OfType<object>().ToArray();
                 Application.Current.Dispatcher.InvokeAsync(() => editor.TreeViewItemCollectionRenderCommitted(items), DispatcherPriority.Input);
             }
@@ -530,7 +545,7 @@ namespace Timeline
 
         void RaiseMousePositionOnTimelineLane(object sender, MouseEventArgs e)
         {
-            // Key‚ğ‘I‘ğ’†‚Éi‘I‘ğ‚µ‚Ä‚©‚çMouse¶ƒNƒŠƒbƒN‚µ‚È‚ª‚çjˆÚ“®‚µ‚Ä‚¢‚ê‚ÎAKey‚ÌÀ•WˆÚ“®‚ÆŒ©‚È‚·
+            // Keyã‚’é¸æŠä¸­ã«ï¼ˆé¸æŠã—ã¦ã‹ã‚‰Mouseå·¦ã‚¯ãƒªãƒƒã‚¯ã—ãªãŒã‚‰ï¼‰ç§»å‹•ã—ã¦ã„ã‚Œã°ã€Keyã®åº§æ¨™ç§»å‹•ã¨è¦‹ãªã™
             if (_IsKeySelectWithMouseLeftButtonPushing)
             {
                 if (_DraggingKey == null)
@@ -538,12 +553,12 @@ namespace Timeline
                     throw new InvalidProgramException();
                 }
 
-                // Key‚ğMouseLeftDown‚µ‚½‚Ü‚ÜDrag‚µn‚ß‚½‚çA‘I‘ğŒó•â‚Ì‚±‚ÌKey‚à‘I‘ğ‚µ‚Ä‚©‚çKeyˆÚ“®‚ğŠJn‚·‚é
+                // Keyã‚’MouseLeftDownã—ãŸã¾ã¾Dragã—å§‹ã‚ãŸã‚‰ã€é¸æŠå€™è£œã®ã“ã®Keyã‚‚é¸æŠã—ã¦ã‹ã‚‰Keyç§»å‹•ã‚’é–‹å§‹ã™ã‚‹
 
-                _IsKeySelectionChanging = true; // SelectionChanged‚ğ’…‰Î‚µ‚È‚¢‚æ‚¤‚É‚·‚é
+                _IsKeySelectionChanging = true; // SelectionChangedã‚’ç€ç«ã—ãªã„ã‚ˆã†ã«ã™ã‚‹
                 {
-                    // DragŠJnKey‚ª”ñ‘I‘ğ‚ÅCtrl‚ª‰Ÿ‚³‚ê‚Ä‚¢‚È‚¯‚ê‚ÎADragŠJn‚µ‚½Key‚Ì‚İ‘I‘ğ‚µ‚ÄˆÚ“®‘ÎÛ‚Æ‚·‚é
-                    // ‹t‚ÉŒ¾‚¦‚ÎADragŠJnKey‚ª‘I‘ğ‚³‚ê‚Ä‚¢‚ê‚ÎA‚»‚ê‚àŠÜ‚ß‚Äˆê‚ÉˆÚ“®‚³‚¹‚é
+                    // Dragé–‹å§‹KeyãŒéé¸æŠã§CtrlãŒæŠ¼ã•ã‚Œã¦ã„ãªã‘ã‚Œã°ã€Dragé–‹å§‹ã—ãŸKeyã®ã¿é¸æŠã—ã¦ç§»å‹•å¯¾è±¡ã¨ã™ã‚‹
+                    // é€†ã«è¨€ãˆã°ã€Dragé–‹å§‹KeyãŒé¸æŠã•ã‚Œã¦ã„ã‚Œã°ã€ãã‚Œã‚‚å«ã‚ã¦ä¸€ç·’ã«ç§»å‹•ã•ã›ã‚‹
                     if (_DraggingKey.IsSelected == false && IsKeyDownCtrl() == false)
                     {
                         SelectedTimelineKeyList.ForEach(arg => arg.IsSelected = false);
@@ -562,7 +577,7 @@ namespace Timeline
                 {
                     e.MouseDevice.Capture(this);
 
-                    // Key‚ÌDragˆÚ“®‚ğn‚ß‚Äˆ—‚·‚é‚Ì‚ÅAŠÖ˜AComman’…‰Î‚Æƒtƒ‰ƒO§Œä
+                    // Keyã®Dragç§»å‹•ã‚’å§‹ã‚ã¦å‡¦ç†ã™ã‚‹ã®ã§ã€é–¢é€£Commanç€ç«ã¨ãƒ•ãƒ©ã‚°åˆ¶å¾¡
                     if (BeginKeyMovingCommand != null && BeginKeyMovingCommand.CanExecute(MousePositionOnTimelineLane))
                     {
                         BeginKeyMovingCommand.Execute(MousePositionOnTimelineLane);
@@ -614,8 +629,8 @@ namespace Timeline
         {
             var items = TrackListBox.ItemContainerGenerator.Items.ToArray();
 
-            // •`‰æŒã‚ÌDispatcherPriority‚É’x‰„‚³‚¹‚é‚±‚Æ‚ÅAƒRƒŒƒNƒVƒ‡ƒ“®—ñŒã‚ÌUIˆÊ’u‚ğæ“¾‚Å‚«‚é‚æ‚¤‚É‚·‚é
-            // Normal‚¾‚ÆARender‚æ‚è‚à‚‚¢Priority‚ÅÀs‚³‚ê‚é‚½‚ßAV‹K’Ç‰Á‚³‚ê‚½Item‚Í‚Ü‚¾UIˆÊ’u‚ªŠm’è‚µ‚Ä‚¢‚È‚¢B
+            // æç”»å¾Œã®DispatcherPriorityã«é…å»¶ã•ã›ã‚‹ã“ã¨ã§ã€ã‚³ãƒ¬ã‚¯ã‚·ãƒ§ãƒ³æ•´åˆ—å¾Œã®UIä½ç½®ã‚’å–å¾—ã§ãã‚‹ã‚ˆã†ã«ã™ã‚‹
+            // Normalã ã¨ã€Renderã‚ˆã‚Šã‚‚é«˜ã„Priorityã§å®Ÿè¡Œã•ã‚Œã‚‹ãŸã‚ã€æ–°è¦è¿½åŠ ã•ã‚ŒãŸItemã¯ã¾ã UIä½ç½®ãŒç¢ºå®šã—ã¦ã„ãªã„ã€‚
             Application.Current.Dispatcher.InvokeAsync(() => TreeViewItemCollectionRenderCommitted(items), DispatcherPriority.Loaded);
         }
 
@@ -625,13 +640,13 @@ namespace Timeline
 
             for (int i = 0; i < contents.Length; i++)
             {
-                // \¬‚³‚ê‚½TreeViewItem‚ğæ“¾‚µ‚ÄA•`‰æ‚³‚ê‚Ä‚¢‚éˆÊ’u‚ğæ“¾‚·‚é
+                // æ§‹æˆã•ã‚ŒãŸTreeViewItemã‚’å–å¾—ã—ã¦ã€æç”»ã•ã‚Œã¦ã„ã‚‹ä½ç½®ã‚’å–å¾—ã™ã‚‹
                 var trackItem = (ListBoxItem)TrackListBox.ItemContainerGenerator.ContainerFromIndex(i);
 
                 var content = contents[i];
                 if (i >= oldLaneCanvasList.Length)
                 {
-                    // Šù‘¶—v‘f”‚ğ’´‚¦‚Ä‚¢‚é‚Ì‚ÅAV‹K’Ç‰Á‚³‚ê‚éƒRƒ“ƒeƒ“ƒc
+                    // æ—¢å­˜è¦ç´ æ•°ã‚’è¶…ãˆã¦ã„ã‚‹ã®ã§ã€æ–°è¦è¿½åŠ ã•ã‚Œã‚‹ã‚³ãƒ³ãƒ†ãƒ³ãƒ„
                     var lane = CreateLaneCanvas(trackItem, content);
 
                     TimelineLaneCanvas.Children.Add(lane);
@@ -641,14 +656,14 @@ namespace Timeline
                     var existingLane = oldLaneCanvasList.FirstOrDefault(arg => arg.DataContext == content);
                     if (existingLane != null)
                     {
-                        // ‡”Ô‚ª•Ï‚í‚Á‚½ê‡‚ÍA‡˜“ü‚ê‘Ö‚¦‚ğs‚¤
+                        // é †ç•ªãŒå¤‰ã‚ã£ãŸå ´åˆã¯ã€é †åºå…¥ã‚Œæ›¿ãˆã‚’è¡Œã†
                         TimelineLaneCanvas.Children.Remove(existingLane);
                         TimelineLaneCanvas.Children.Insert(i, existingLane);
                     }
                     else
                     {
-                        // Lane‚É‚È‚¢ê‡‚ÍV‹K’Ç‰Á
-                        // Šù‘¶—v‘f”‚ğ’´‚¦‚Ä‚¢‚é‚Ì‚ÅAV‹K’Ç‰Á‚³‚ê‚éƒRƒ“ƒeƒ“ƒc
+                        // Laneã«ãªã„å ´åˆã¯æ–°è¦è¿½åŠ 
+                        // æ—¢å­˜è¦ç´ æ•°ã‚’è¶…ãˆã¦ã„ã‚‹ã®ã§ã€æ–°è¦è¿½åŠ ã•ã‚Œã‚‹ã‚³ãƒ³ãƒ†ãƒ³ãƒ„
                         var lane = CreateLaneCanvas(trackItem, content);
 
                         TimelineLaneCanvas.Children.Insert(i, lane);
@@ -658,7 +673,7 @@ namespace Timeline
 
             var newLaneCanvasList = TimelineLaneCanvas.Children.OfType<TimelineLaneCanvas>().ToArray();
 
-            // ‚±‚Ì“_‚Å•K‚¸LaneCanvas‚Í1‚ÂˆÈã‘¶İ‚·‚é
+            // ã“ã®æ™‚ç‚¹ã§å¿…ãšLaneCanvasã¯1ã¤ä»¥ä¸Šå­˜åœ¨ã™ã‚‹
             for (int i = newLaneCanvasList.Length; i > contents.Length; --i)
             {
                 TimelineLaneCanvas removeLane = newLaneCanvasList[i - 1];
@@ -677,7 +692,7 @@ namespace Timeline
                 TimelineLaneCanvas.Children.Remove(removeLane);
             }
 
-            // TrackˆÊ’u‚ÆLaneˆÊ’u‚ğ“¯Šú‚³‚¹‚é
+            // Trackä½ç½®ã¨Laneä½ç½®ã‚’åŒæœŸã•ã›ã‚‹
             foreach (var laneCanvas in TimelineLaneCanvas.Children.OfType<TimelineLaneCanvas>())
             {
                 var pos = laneCanvas.TrackItem.TranslatePoint(Define.ZeroPoint, TrackListBox);
@@ -712,9 +727,11 @@ namespace Timeline
             {
                 var pos = e.GetPosition(TimelineLaneScrollViewer);
 
-                // ƒXƒNƒ[ƒ‹ƒo[ã‚ÅMarker‚Ío‚³‚È‚¢
+                // ã‚¹ã‚¯ãƒ­ãƒ¼ãƒ«ãƒãƒ¼ä¸Šã§Markerã¯å‡ºã•ãªã„
                 if (0.0 <= pos.X && pos.X < TimelineLaneScrollViewer.ViewportWidth && -24 <= pos.Y && pos.Y < TimelineLaneScrollViewer.ViewportHeight)
                 {
+                    _IsDraggingToDisplayMarker = true;
+
                     TimelineMarker.Visibility = Visibility.Visible;
                     TimelineMarker.CurrentPosition = e.GetPosition(TimelineMarker).X;
 
@@ -733,7 +750,7 @@ namespace Timeline
 
         void TimelineKeyRemovedEventHandler(object? sender, TimelineKey e)
         {
-            // ‚à‚µ‘I‘ğ’†‚ÌKey‚Ì’†‚Éíœ‚³‚ê‚½Key‚ªŠÜ‚Ü‚ê‚Ä‚¢‚½‚çƒŠƒXƒg‚©‚çœŠO‚·‚é
+            // ã‚‚ã—é¸æŠä¸­ã®Keyã®ä¸­ã«å‰Šé™¤ã•ã‚ŒãŸKeyãŒå«ã¾ã‚Œã¦ã„ãŸã‚‰ãƒªã‚¹ãƒˆã‹ã‚‰é™¤å¤–ã™ã‚‹
             SelectedTimelineKeyList.Remove(e);
         }
 
@@ -741,8 +758,8 @@ namespace Timeline
         {
             _IsKeySelectWithMouseLeftButtonPushing = true;
 
-            // MouseLeftDown‚¾‚¯‚µ‚Ä‘I‘ğ‚Í‚³‚ê‚Ä‚¢‚È‚¢‚ªADrag‚É‚æ‚Á‚ÄˆÚ“®‚³‚ê‚é‚©‚à‚µ‚ê‚È‚¢Key
-            // ˆÚ“®‚µn‚ß‚½‚çA‚±‚ÌKey‚à‘I‘ğ‘ÎÛ‚É‚·‚é
+            // MouseLeftDownã ã‘ã—ã¦é¸æŠã¯ã•ã‚Œã¦ã„ãªã„ãŒã€Dragã«ã‚ˆã£ã¦ç§»å‹•ã•ã‚Œã‚‹ã‹ã‚‚ã—ã‚Œãªã„Key
+            // ç§»å‹•ã—å§‹ã‚ãŸã‚‰ã€ã“ã®Keyã‚‚é¸æŠå¯¾è±¡ã«ã™ã‚‹
             _DraggingKey = key;
         }
 
@@ -811,6 +828,10 @@ namespace Timeline
         void TimelineLaneScrollViewer_ScrollChanged(object sender, ScrollChangedEventArgs e)
         {
             TimelineRuler.Offset = new Point(-e.HorizontalOffset, 0);
+            if(_TrackListboxScrollViewer == null)
+            {
+                throw new InvalidCastException();
+            }
             _TrackListboxScrollViewer.ScrollToVerticalOffset(e.VerticalOffset);
         }
     }
