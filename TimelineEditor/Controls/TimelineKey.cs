@@ -32,7 +32,8 @@ namespace Timeline.Controls
             DependencyProperty.Register(nameof(IsSelected), typeof(bool), typeof(TimelineKey),
                 new FrameworkPropertyMetadata(false, FrameworkPropertyMetadataOptions.BindsTwoWayByDefault, IsSelectedPropertyChanged));
 
-        internal EventHandler<TimelineKey>? TouchEvent { get; set; }
+        internal EventHandler<MouseButtonEventArgs>? PreMouseLeftButtonDown { get; set; }
+        internal EventHandler<MouseButtonEventArgs>? PreMouseLeftButtonUp { get; set; }
         internal EventHandler<TimelineKey>? SelectionChangedEvent { get; set; }
 
         TranslateTransform Translate { get; }
@@ -55,22 +56,29 @@ namespace Timeline.Controls
         {
             // Ctrl+Clickによる超シビアなタイミングでClickCount==2で処理が来る場合がある
             // なので、ClickCountを見て処理を限定する実装はしないように。
-            TouchEvent?.Invoke(this, this);
+            PreMouseLeftButtonDown?.Invoke(this, e);
+
             e.Handled = true;
         }
 
         protected override void OnMouseLeftButtonUp(MouseButtonEventArgs e)
         {
-            if (Keyboard.IsKeyDown(Key.LeftCtrl) || Keyboard.IsKeyDown(Key.RightCtrl))
-            {
-                IsSelected = !IsSelected;
-            }
-            else
-            {
-                IsSelected = true;
-            }
+            PreMouseLeftButtonUp?.Invoke(this, e);
 
-            e.Handled = true;
+            // Lane側でHandleする必要がある処理が行われたので、ここでは処理しない
+            if (e.Handled == false)
+            {
+                if (Keyboard.IsKeyDown(Key.LeftCtrl) || Keyboard.IsKeyDown(Key.RightCtrl))
+                {
+                    IsSelected = !IsSelected;
+                }
+                else
+                {
+                    IsSelected = true;
+                }
+
+                e.Handled = true;
+            }
         }
 
         static void PlacementPositionPropertyChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)

@@ -52,10 +52,10 @@ namespace Test.ViewModels
         public IEnumerable<TimelineKeyViewModel> Keys => _Keys;
         ObservableCollection<TimelineKeyViewModel> _Keys = new ObservableCollection<TimelineKeyViewModel>();
 
-        public ViewModelCommand AddKeyCommand => _AddKeyCommand.Get(AddKey);
+        public ViewModelCommand AddKeyCommand => _AddKeyCommand.Get(AddKey, () => Owner.IsPlaying == false);
         ViewModelCommandHandler _AddKeyCommand = new ViewModelCommandHandler();
 
-        public ViewModelCommand AddKeyWithDoubleClickCommand => _AddKeyWithDoubleClickCommand.Get(AddKeyWithDoubleClick);
+        public ViewModelCommand AddKeyWithDoubleClickCommand => _AddKeyWithDoubleClickCommand.Get(AddKeyWithDoubleClick, () => Owner.IsPlaying == false);
         ViewModelCommandHandler _AddKeyWithDoubleClickCommand = new ViewModelCommandHandler();
         
 
@@ -73,6 +73,12 @@ namespace Test.ViewModels
                     key.Dispose();
                 }
             });
+        }
+
+        public void RaiseCanExecuteCommand()
+        {
+            AddKeyCommand.RaiseCanExecuteChanged();
+            AddKeyWithDoubleClickCommand.RaiseCanExecuteChanged();
         }
 
         public void AddKey()
@@ -188,6 +194,9 @@ namespace Test.ViewModels
 
         public MainWindowViewModel()
         {
+            // ViewModelCommand.RaiseCanExecuteChangedの実行に必要
+            DispatcherHelper.UIDispatcher = Application.Current.Dispatcher;
+
             var test1Lane = new TrackItemViewModel("test1", this);
             test1Lane.AddKey();
             test1Lane.Keys.ElementAt(0).IsSelected = true;
@@ -280,6 +289,11 @@ namespace Test.ViewModels
         void SwitchPlayingState()
         {
             IsPlaying = !IsPlaying;
+
+            foreach (var track in _Tracks)
+            {
+                track.RaiseCanExecuteCommand();
+            }
         }
 
         void ResetTime()

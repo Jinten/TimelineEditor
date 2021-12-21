@@ -13,6 +13,18 @@ using System.Windows.Media;
 
 namespace Timeline.Controls
 {
+    internal class KeyMouseEventArgs : EventArgs
+    {
+        internal TimelineKey Key { get; }
+        internal MouseEventArgs EventArgs { get; }
+
+        internal KeyMouseEventArgs(TimelineKey key, MouseEventArgs eventArgs)
+        {
+            Key = key;
+            EventArgs = eventArgs;
+        }
+    }
+
     public class TimelineLaneCanvas : Canvas
     {
         public IEnumerable KeysSource
@@ -58,8 +70,9 @@ namespace Timeline.Controls
         internal ListBoxItem TrackItem { get; }
         internal EventHandler<TimelineKey>? KeyAddedEvent { get; set; }
         internal EventHandler<TimelineKey>? KeyRemovedEvent { get; set; }
-        internal EventHandler<TimelineKey>? KeyTouchEvent { get; set; }
         internal EventHandler<TimelineKey>? KeySelectionChangedEvent { get; set; }
+        internal EventHandler<KeyMouseEventArgs>? PreKeyMouseLeftBottomDownEvent { get; set; }
+        internal EventHandler<KeyMouseEventArgs>? PreKeyMouseLeftBottomUpEvent { get; set; }
 
         TranslateTransform Translate { get; }
 
@@ -167,9 +180,12 @@ namespace Timeline.Controls
         {
             if (e.ClickCount == 2)
             {
-                if (LaneDoubleClickedCommand != null && LaneDoubleClickedCommand.CanExecute(e))
+                if (e.Handled == false)
                 {
-                    LaneDoubleClickedCommand.Execute(e);
+                    if (LaneDoubleClickedCommand != null && LaneDoubleClickedCommand.CanExecute(e))
+                    {
+                        LaneDoubleClickedCommand.Execute(e);
+                    }
                 }
             }
         }
@@ -195,14 +211,16 @@ namespace Timeline.Controls
 
         void SubscribeTimelineKeyEvent(TimelineKey key)
         {
-            key.TouchEvent += KeyTouchEventHandler;
+            key.PreMouseLeftButtonDown += KeyPreMouseLeftButtonDownEventHandler;
+            key.PreMouseLeftButtonUp += KeyPreMouseLeftButtonUpEventHandler;
             key.SelectionChangedEvent += KeySelectionChangedEventHandler;
         }
 
         void UnsubscribeTimelineKeyEvent(TimelineKey key)
         {
             key.SelectionChangedEvent -= KeySelectionChangedEventHandler;
-            key.TouchEvent -= KeyTouchEventHandler;
+            key.PreMouseLeftButtonUp -= KeyPreMouseLeftButtonUpEventHandler;
+            key.PreMouseLeftButtonDown -= KeyPreMouseLeftButtonDownEventHandler;
         }
 
         void AddKeysInternal(params TimelineKey[] addKeys)
@@ -279,9 +297,26 @@ namespace Timeline.Controls
             RemoveKeys(removeKeys);
         }
 
-        void KeyTouchEventHandler(object? sender, TimelineKey key)
+        void KeyPreMouseLeftButtonDownEventHandler(object? sender, MouseButtonEventArgs e)
         {
-            KeyTouchEvent?.Invoke(this, key);
+            if(sender == null)
+            {
+                throw new ArgumentNullException(nameof(sender));
+            }
+            TimelineKey key = (TimelineKey)sender;
+
+            PreKeyMouseLeftBottomDownEvent?.Invoke(this, new KeyMouseEventArgs(key, e));
+        }
+
+        void KeyPreMouseLeftButtonUpEventHandler(object? sender, MouseButtonEventArgs e)
+        {
+            if (sender == null)
+            {
+                throw new ArgumentNullException(nameof(sender));
+            }
+            TimelineKey key = (TimelineKey)sender;
+
+            PreKeyMouseLeftBottomUpEvent?.Invoke(this, new KeyMouseEventArgs(key, e));
         }
 
         void KeySelectionChangedEventHandler(object? sender, TimelineKey key)

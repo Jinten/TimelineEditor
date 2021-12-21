@@ -55,6 +55,8 @@
                                          VerticalAlignment="Top"/>
                 
                     <ctrls:TimelineMarker x:Name="TimelineMarker" LineColor="#CCFF0000" BackWidth="24" Visibility="Collapsed"/>
+
+                    <ctrls:TimelineRangeSelector x:Name="TimelineRangeSelector" Color="#44000000" Visibility="Collapsed"/>
                 </Canvas>
 
                 <!--

@@ -192,6 +192,7 @@ namespace Timeline
         bool _IsKeySelectionChanging = false;                   // KeyのIsSelectedが変更されて内部処理をしている状態かどうか
         bool _IsKeySelectWithMouseLeftButtonPushing = false;    // Key選択でMouseLeftButtonが押し続けられているかのフラグ
         bool _IsDraggingToDisplayMarker = false;                // DraggingによるMarker表示かどうか
+        bool _IsClickedOnLaneOrEmptyArea = false;                   // LaneもしくはEmptyAreaをシングルクリックしたかどうか
 
         TimelineKey? _DraggingKey = null;
         DispatcherTimer? _PlayingTimer = null;
@@ -267,6 +268,8 @@ namespace Timeline
         protected override void OnPreviewMouseLeftButtonUp(MouseButtonEventArgs e)
         {
             _IsKeySelectWithMouseLeftButtonPushing = false;
+
+            _IsClickedOnLaneOrEmptyArea = false;
         }
 
         protected override void OnPreviewKeyUp(KeyEventArgs e)
@@ -281,12 +284,6 @@ namespace Timeline
         {
             ReleaseMouseCapture();
 
-            if (IsPlaying)
-            {
-                _IsDraggingToDisplayMarker = false;
-                return;
-            }
-
             // DragによるKey移動をしていたなら、選択はそのままにしておく
             if (_IsKeyDragMoving)
             {
@@ -298,7 +295,7 @@ namespace Timeline
 
                 _IsKeyDragMoving = false;
             }
-            else if (_IsDraggingToDisplayMarker == false)
+            else if (_IsDraggingToDisplayMarker == false && TimelineRangeSelector.Visibility == Visibility.Collapsed)
             {
                 // シングルクリック時のみ処理
                 // Key追加後であれば、LaneClickによる選択解除はしない（新規追加のKeyが選択状態の可能性があるため）
@@ -308,11 +305,14 @@ namespace Timeline
                 }
             }
 
-            if (IsDisplayMarkerAlways == false)
+            if (IsDisplayMarkerAlways == false && IsPlaying == false)
             {
                 // TimelineMarkerのVisibilityを見て、LaneClickedの判断をしてからCollapsedにする
                 TimelineMarker.Visibility = Visibility.Collapsed;
             }
+
+            // LaneClickedCommandで判定しているため、後続で処理
+            RangeSelectKeys();
 
             _IsDraggingToDisplayMarker = false;
         }
@@ -336,6 +336,19 @@ namespace Timeline
             else if (CanMoveMarker() && _IsKeySelectWithMouseLeftButtonPushing == false)
             {
                 TimelineMarker.UpdatePosition(e.GetPosition(TimelineMarker).X);
+            }
+            else if(_IsClickedOnLaneOrEmptyArea)
+            {
+                var position = e.GetPosition(TimelineLaneGrid).X;
+
+                TimelineRangeSelector.CurrentPosition = position;
+
+                if (TimelineRangeSelector.Visibility == Visibility.Collapsed)
+                {
+                    // 初回表示
+                    TimelineRangeSelector.OriginPosition = position;
+                    TimelineRangeSelector.Visibility = Visibility.Visible;
+                }
             }
         }
 
@@ -490,6 +503,45 @@ namespace Timeline
         bool CanMoveMarker()
         {
             return IsKeyDownCtrl() && _PlayingTimer == null && Mouse.LeftButton == MouseButtonState.Pressed;
+        }
+
+        bool RangeSelectKeys()
+        {
+            // LaneClickedCommandで判定しているため、後続で処理
+            if (TimelineRangeSelector.Visibility == Visibility.Collapsed)
+            {
+                return false;
+            }
+
+            // RangeSelectorが起動していたので、範囲選択する
+            _IsKeySelectionChanging = true;
+
+            SelectedTimelineKeyList.ForEach(arg => arg.IsSelected = false);
+            SelectedTimelineKeyList.Clear();
+
+            var laneCanvasList = TimelineLaneCanvas.Children.OfType<TimelineLaneCanvas>();
+
+            // 全てのLaneに所属するKeyの範囲選択判定を行い選択させる
+            foreach (var laneCanvas in laneCanvasList)
+            {
+                var keys = laneCanvas.GetTimelineKeys();
+                var selectKeys = keys.Where(arg =>
+                {
+                    var min_pos = arg.TranslatePoint(Define.ZeroPoint, laneCanvas).X;
+                    var max_pos = min_pos + arg.ActualWidth;
+                    return TimelineRangeSelector.IsContentWithinRange(min_pos, max_pos);
+                });
+
+                SelectedTimelineKeyList.AddRange(selectKeys);
+            }
+
+            SelectedTimelineKeyList.ForEach(arg => arg.IsSelected = true);
+
+            _IsKeySelectionChanging = false;
+
+            TimelineRangeSelector.Visibility = Visibility.Collapsed;
+
+            return true;
         }
 
         void LaneWidthTextBox_KeyDown(object sender, KeyEventArgs e)
@@ -684,10 +736,11 @@ namespace Timeline
                     SelectedTimelineKeyList.Remove(key);
                 }
 
-                removeLane.KeySelectionChangedEvent -= TimelineKeySelectionChangedEventHandler;
-                removeLane.KeyTouchEvent -= TimelineKeyTouchEventHandler;
-                removeLane.KeyAddedEvent -= TimelineKeyAddedEventHandler;
-                removeLane.KeyRemovedEvent -= TimelineKeyRemovedEventHandler;
+                removeLane.KeySelectionChangedEvent -= LaneKeySelectionChangedEventHandler;
+                removeLane.PreKeyMouseLeftBottomDownEvent -= LanePreKeyMouseLeftButtonDownEventHandler;
+                removeLane.PreKeyMouseLeftBottomUpEvent -= LanePreKeyMouseLeftButtonUpEventHandler;
+                removeLane.KeyAddedEvent -= LaneKeyAddedEventHandler;
+                removeLane.KeyRemovedEvent -= LaneKeyRemovedEventHandler;
 
                 TimelineLaneCanvas.Children.Remove(removeLane);
             }
@@ -708,10 +761,11 @@ namespace Timeline
 
             laneCanvas.Style = TimelineLaneContainerStyle;
 
-            laneCanvas.KeyAddedEvent += TimelineKeyAddedEventHandler;
-            laneCanvas.KeyRemovedEvent += TimelineKeyRemovedEventHandler;
-            laneCanvas.KeyTouchEvent += TimelineKeyTouchEventHandler;
-            laneCanvas.KeySelectionChangedEvent += TimelineKeySelectionChangedEventHandler;
+            laneCanvas.KeyAddedEvent += LaneKeyAddedEventHandler;
+            laneCanvas.KeyRemovedEvent += LaneKeyRemovedEventHandler;
+            laneCanvas.PreKeyMouseLeftBottomDownEvent += LanePreKeyMouseLeftButtonDownEventHandler;
+            laneCanvas.PreKeyMouseLeftBottomUpEvent += LanePreKeyMouseLeftButtonUpEventHandler;
+            laneCanvas.KeySelectionChangedEvent += LaneKeySelectionChangedEventHandler;
 
             laneCanvas.ApplyTemplate();
 
@@ -738,9 +792,14 @@ namespace Timeline
                     e.MouseDevice.Capture(this);
                 }
             }
+            else
+            {
+                // LaneをシングルクリックまたはEmptyAreaをシングルクリック
+                _IsClickedOnLaneOrEmptyArea = true;
+            }
         }
 
-        void TimelineKeyAddedEventHandler(object? sender, TimelineKey e)
+        void LaneKeyAddedEventHandler(object? sender, TimelineKey e)
         {
             if (e.IsSelected)
             {
@@ -748,22 +807,29 @@ namespace Timeline
             }
         }
 
-        void TimelineKeyRemovedEventHandler(object? sender, TimelineKey e)
+        void LaneKeyRemovedEventHandler(object? sender, TimelineKey e)
         {
             // もし選択中のKeyの中に削除されたKeyが含まれていたらリストから除外する
             SelectedTimelineKeyList.Remove(e);
         }
 
-        void TimelineKeyTouchEventHandler(object? sender, TimelineKey key)
+        void LanePreKeyMouseLeftButtonDownEventHandler(object? sender, KeyMouseEventArgs e)
         {
             _IsKeySelectWithMouseLeftButtonPushing = true;
 
             // MouseLeftDownだけして選択はされていないが、Dragによって移動されるかもしれないKey
             // 移動し始めたら、このKeyも選択対象にする
-            _DraggingKey = key;
+            _DraggingKey = e.Key;
         }
 
-        void TimelineKeySelectionChangedEventHandler(object? sender, TimelineKey e)
+        void LanePreKeyMouseLeftButtonUpEventHandler(object? sender, KeyMouseEventArgs e)
+        {
+            // 範囲選択した場合、Key上でMouseUpした場合はKeyの選択処理ではなく
+            // 範囲選択処理を行ってハンドリング扱いにする
+            e.EventArgs.Handled = RangeSelectKeys();
+        }
+
+        void LaneKeySelectionChangedEventHandler(object? sender, TimelineKey e)
         {
             if (_IsKeySelectionChanging)
             {
