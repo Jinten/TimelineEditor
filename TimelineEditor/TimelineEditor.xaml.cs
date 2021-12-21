@@ -511,7 +511,7 @@ namespace Timeline
                 {
                     throw new InvalidProgramException();
                 }
-                _PlayingTimer = new DispatcherTimer();
+                _PlayingTimer = new DispatcherTimer(DispatcherPriority.Normal);
                 _PlayingTimer.Interval = TimeSpan.FromMilliseconds(16.0);
                 _PlayingTimer.Tick += PlayingTimer_Tick;
                 _PlayingTimer.IsEnabled = true;

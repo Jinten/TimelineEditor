@@ -105,6 +105,11 @@
                             </ContextMenu>
                         </Setter.Value>
                     </Setter>
+                    <Style.Triggers>
+                        <DataTrigger Binding="{Binding IsSelected}" Value="True">
+                            <Setter Property="Background" Value="#CC888888"/>
+                        </DataTrigger>
+                    </Style.Triggers>
                 </Style>
             </tl:TimelineEditor.TimelineLaneContainerStyle>
 

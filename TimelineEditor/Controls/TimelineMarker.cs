@@ -79,8 +79,8 @@ namespace Timeline.Controls
             UpdateBackColor();
 
             // 親のGridの高さを取得
-            var parentGrid = (Grid)Parent;
-            var parentActualHeight = parentGrid.ActualHeight;
+            var parentCanvas = (Canvas)Parent;
+            var parentActualHeight = parentCanvas.ActualHeight;
 
             dc.DrawRectangle(_BackColor, null, new Rect(CurrentPosition - BackWidth * 0.5, 0, BackWidth, parentActualHeight));
 

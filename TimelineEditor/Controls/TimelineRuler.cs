@@ -101,7 +101,10 @@ namespace Timeline.Controls
 
         public TimelineRuler()
         {
-
+            Loaded += (sender, e) =>
+            {
+                ((Canvas)Parent).SizeChanged += TimelineRuler_SizeChanged;
+            };
         }
 
         protected override void OnRender(DrawingContext dc)
@@ -128,14 +131,19 @@ namespace Timeline.Controls
             }
         }
 
+        void TimelineRuler_SizeChanged(object sender, SizeChangedEventArgs e)
+        {
+            InvalidateVisual();
+        }
+
         void OnRenderHorizontal(DrawingContext dc)
         {
             double s = Math.Max(Scale, 1);
 
-            // 親Gridの縦横を取得
-            var parentGrid = (Grid)Parent;
-            var parentActualWidth = parentGrid.ActualWidth;
-            var parentActualHeight = parentGrid.ActualHeight;
+            // 親Canvasの縦横を取得
+            var parentCanvas = (Canvas)Parent;
+            var parentActualWidth = parentCanvas.ActualWidth;
+            var parentActualHeight = parentCanvas.ActualHeight;
 
             int init = Math.Max(0, (int)(-Offset.X / UnitDistance) - 1);
             int count = (int)((-Offset.X + parentActualWidth) / UnitDistance) + 1;
